@@ -23,6 +23,7 @@ import androidx.appcompat.widget.Toolbar;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +31,14 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback  {
 
     private com.google.android.material.textfield.TextInputEditText output, errorCode;
+
+    /**
+     * section for general workflow
+     */
+
+    private LinearLayout llGeneralWorkflow;
+    private Button tagVersion;
+
     /**
      * section for application handling
      */
@@ -47,7 +56,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private com.google.android.material.textfield.TextInputEditText fileId, fileSize;
 
     // constants
+    public static final byte GET_VERSION_INFO = (byte) 0x60;
+    private static final byte GET_ADDITIONAL_FRAME = (byte) 0xAF;
     private byte[] DES_DEFAULT_KEY = new byte[8];
+    // Status codes (Section 3.4)
+    private static final byte OPERATION_OK = (byte) 0x00;
+    private static final byte PERMISSION_DENIED = (byte) 0x9D;
+    private static final byte AUTHENTICATION_ERROR = (byte) 0xAE;
+    private static final byte ADDITIONAL_FRAME = (byte) 0xAF;
 
     // variables for NFC handling
 
@@ -65,6 +81,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         output = findViewById(R.id.etOutput);
         errorCode = findViewById(R.id.etErrorCode);
+
+        // general workflow
+        tagVersion = findViewById(R.id.btnGetTagVersion);
 
         // application handling
         llApplicationHandling = findViewById(R.id.llApplications);
@@ -87,6 +106,29 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         allLayoutsInvisible(); // default
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+
+        /**
+         * section for general workflow
+         */
+
+        tagVersion.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // get the tag version data
+
+                VersionInfo versionInfo = null;
+                try {
+                    versionInfo = getVersionInfo(output);
+                } catch (Exception e) {
+                    //throw new RuntimeException(e);
+                    writeToUiAppend(errorCode, "getTagVersion Exception: " + e.getMessage());
+                    e.printStackTrace();
+                }
+                if (versionInfo != null) {
+                    writeToUiAppend(output, versionInfo.dump());
+                }
+            }
+        });
 
         /**
          * section for applications
@@ -174,6 +216,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+
+
         /**
          * section  for standard files
          */
@@ -184,7 +228,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // authenticate with the default DES key
                 clearOutputFields();
                 byte[] responseData = new byte[2];
-                byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                byte keyId = (byte) 0x00; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
                 writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
                 writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
@@ -214,6 +258,48 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+    }
+
+    /**
+     * section for general workflow
+     */
+
+    public VersionInfo getVersionInfo(TextView logTextView) throws Exception {
+        byte[] bytes = sendRequest(logTextView, GET_VERSION_INFO);
+        return new VersionInfo(bytes);
+    }
+
+    private byte[] sendRequest(TextView logTextView, byte command) throws Exception {
+        return sendRequest(logTextView, command, null);
+    }
+
+    // todo take this as MASTER for sending commands to the card and receiving data
+    private byte[] sendRequest(TextView logTextView, byte command, byte[] parameters) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        byte[] recvBuffer = isoDep.transceive(wrapMessage(command, parameters));
+        writeToUiAppend(logTextView, printData("sendRequest recvBuffer", recvBuffer));
+        while (true) {
+            if (recvBuffer[recvBuffer.length - 2] != (byte) 0x91) {
+                throw new Exception("Invalid response");
+            }
+
+            output.write(recvBuffer, 0, recvBuffer.length - 2);
+
+            byte status = recvBuffer[recvBuffer.length - 1];
+            if (status == OPERATION_OK) {
+                break;
+            } else if (status == ADDITIONAL_FRAME) {
+                recvBuffer = isoDep.transceive(wrapMessage(GET_ADDITIONAL_FRAME, null));
+            } else if (status == PERMISSION_DENIED) {
+                throw new AccessControlException("Permission denied");
+            } else if (status == AUTHENTICATION_ERROR) {
+                throw new AccessControlException("Authentication error");
+            } else {
+                throw new Exception("Unknown status code: " + Integer.toHexString(status & 0xFF));
+            }
+        }
+        return output.toByteArray();
     }
 
     /**
