@@ -54,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private LinearLayout llStandardFile;
     private Button fileList, fileStandardCreate, fileStandardRead, authenticate;
     private com.google.android.material.textfield.TextInputEditText fileId, fileSize;
+    // old routines
+    private Button fileStandardCreateOld;
 
     // constants
     public static final byte GET_VERSION_INFO = (byte) 0x60;
@@ -101,7 +103,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
         fileId = findViewById(R.id.etFileId);
         fileSize = findViewById(R.id.etFileSize);
-
+        // old ones
+        fileStandardCreateOld = findViewById(R.id.btnCreateStandardFileOld);
 
         allLayoutsInvisible(); // default
 
@@ -207,6 +210,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     public void onClick(DialogInterface dialog, int which) {
                         writeToUiAppend(output, "you  selected nr " + which + " = " + applicationList[which]);
                         selectedApplicationId = Utils.hexStringToByteArray(applicationList[which]);
+                        // now we run the command to select the application
+                        byte[] responseData = new byte[2];
+                        boolean result = selectApplicationDes(output, selectedApplicationId, responseData);
+                        writeToUiAppend(output, "result of selectApplicationDes: " + result);
+                        writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
+
                         applicationSelected.setText(applicationList[which]);
                     }
                 });
@@ -255,6 +264,44 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean result = createStandardFile(output, fileIdByte, fileSizeInt, responseData);
                 writeToUiAppend(output, "result of createAStandardFile: " + result);
                 writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+            }
+        });
+
+        fileStandardCreateOld.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this is the old method from Playground
+
+                // select application and create a standard file
+
+                writeToUiAppend(output, "");
+                writeToUiAppend(output, "create a Standard File");
+/*
+                // select the application
+                byte[] responseData = new byte[2];
+                boolean selectApplicationSuccess = selectApplicationDes(output, AID_DesStandard, responseData);
+                writeToUiAppend(output, "selectApplication success: " + selectApplicationSuccess + " with response: " + Utils.bytesToHex(responseData));
+
+                // authenticate
+                responseData = new byte[2];
+                // we set the rw + car rights to key 0 so we need to authenticate with key 0 first to proceed
+                boolean authenticateSuccess = authenticateApplicationDes(output, AID_DesStandard_Key0_Number, AID_DesStandard_Key0, false, responseData);
+                writeToUiAppend(output, "authenticateApplication result: " + authenticateSuccess + " with response: " + Utils.bytesToHex(responseData));
+                if (!authenticateSuccess) {
+                    writeToUiAppend(output, "the authentication was not successful, aborted");
+                    return;
+                }
+
+                // create the standard file
+                responseData = new byte[2];
+                boolean createStandardFileSuccess = createStandardFile(output, DesStandardFileFileNumber1, responseData);
+                writeToUiAppend(output, "createStandardFile result: " + createStandardFileSuccess + " with response: " + Utils.bytesToHex(responseData));
+                if (!createStandardFileSuccess) {
+                    writeToUiAppend(output, "the createStandardFile was not successful, aborted");
+                    return;
+                }
+
+ */
             }
         });
 
@@ -584,6 +631,28 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             return false;
         }
     }
+
+    private boolean selectApplicationDes(TextView logTextView, byte[] applicationIdentifier, byte[] response) {
+        // select application
+        byte selectApplicationCommand = (byte) 0x5a;
+        byte[] selectApplicationResponse = new byte[0];
+        try {
+            selectApplicationResponse = isoDep.transceive(wrapMessage(selectApplicationCommand, applicationIdentifier));
+            writeToUiAppend(logTextView, printData("selectApplicationResponse", selectApplicationResponse));
+            System.arraycopy(returnStatusBytes(selectApplicationResponse), 0, response, 0, 2);
+            //System.arraycopy(selectApplicationResponse, 0, response, 0, selectApplicationResponse.length);
+            if (checkResponse(selectApplicationResponse)) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "selectApplicationDes transceive failed: " + e.getMessage());
+            return false;
+        }
+    }
+
 
     /**
      * section for command and response handling
