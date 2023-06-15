@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback  {
+public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
     private com.google.android.material.textfield.TextInputEditText output, errorCode;
 
@@ -52,8 +52,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     private LinearLayout llStandardFile;
-    private Button fileList, fileStandardCreate, fileStandardRead, authenticate;
+    private Button fileList, fileSelect, fileStandardCreate, fileStandardRead, authenticate;
+    private com.shawnlin.numberpicker.NumberPicker npFileId;
+
+    private com.google.android.material.textfield.TextInputEditText fileSelected;
     private com.google.android.material.textfield.TextInputEditText fileId, fileSize;
+    private String selectedFileId = "";
     // old routines
     private Button fileStandardCreateOld;
 
@@ -98,9 +102,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // standard file handling
         llStandardFile = findViewById(R.id.llStandardFile);
         fileList = findViewById(R.id.btnListFiles);
+        fileSelect = findViewById(R.id.btnSelectFile);
         authenticate = findViewById(R.id.btnAuthenticate);
         fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
+        npFileId = findViewById(R.id.npFileId);
+        fileSelected = findViewById(R.id.etSelectedFileId);
         fileId = findViewById(R.id.etFileId);
         fileSize = findViewById(R.id.etFileSize);
         // old ones
@@ -226,7 +233,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         });
 
 
-
         /**
          * section  for standard files
          */
@@ -244,13 +250,89 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        fileList.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // list all files in a selected application
+
+                byte[] responseData = new byte[2];
+                List<Byte> fileIdList = getFileIdsList(output, responseData);
+                writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
+                if (fileIdList != null) {
+                    for (int i = 0; i < fileIdList.size(); i++) {
+                        writeToUiAppend(output, "entry " + i + " file id : " + Utils.byteToHex(fileIdList.get(i)));
+                    }
+                } else {
+                    writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                }
+
+            }
+        });
+
+        fileSelect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // select a file in a selected application
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                List<Byte> fileIdList = getFileIdsList(output, responseData);
+                writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
+                if (fileIdList != null) {
+                    for (int i = 0; i < fileIdList.size(); i++) {
+                        writeToUiAppend(output, "entry " + i + " file id : " + Utils.byteToHex(fileIdList.get(i)));
+                    }
+                } else {
+                    writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                    return;
+                }
+                String[] fileList = new String[fileIdList.size()];
+                for (int i = 0; i < fileIdList.size(); i++) {
+                    fileList[i] = Utils.byteToHex(fileIdList.get(i));
+                }
+
+                // setup the alert builder
+                AlertDialog.Builder builder = new AlertDialog.Builder(view.getContext());
+                builder.setTitle("Choose a file");
+
+                // add a list
+                //String[] animals = {"horse", "cow", "camel", "sheep", "goat"};
+                //builder.setItems(animals, new DialogInterface.OnClickListener() {
+                builder.setItems(fileList, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        writeToUiAppend(output, "you  selected nr " + which + " = " + fileList[which]);
+                        selectedFileId = fileList[which];
+                        // now we run the command to select the application
+                        byte[] responseData = new byte[2];
+                        //boolean result = selectDes(output, selectedApplicationId, responseData);
+                        //writeToUiAppend(output, "result of selectApplicationDes: " + result);
+                        //writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
+
+                        // todo getFileSettings
+
+                        fileSelected.setText(fileList[which]);
+                    }
+                });
+                // create and show the alert dialog
+                AlertDialog dialog = builder.create();
+                dialog.show();
+            }
+        });
+
         fileStandardCreate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // create a new standard file
                 // get the input and sanity checks
                 clearOutputFields();
-                byte fileIdByte = Byte.parseByte(fileId.getText().toString());
+
+                // the number of files on an EV1 is limited to 32 (00..31)
+                // this limit is setup in the XML file
+
+                // this uses the numberPicker
+                byte fileIdByte = (byte) (npFileId.getValue() & 0xFF);
+                // this is done with an EditText
+                //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
                 int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
                 if (fileIdByte > (byte) 0x0f) {
                     writeToUiAppend(errorCode, "you entered a wrong file ID");
@@ -522,6 +604,97 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    private List<Byte> getFileIdsList(TextView logTextView, byte[] response) {
+        // get application ids
+        List<Byte> fileIdList = new ArrayList<>();
+        byte getFileIdsCommand = (byte) 0x6f;
+        byte[] getFileIdsResponse = new byte[0];
+        try {
+            getFileIdsResponse = isoDep.transceive(wrapMessage(getFileIdsCommand, null));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            return null;
+        }
+        writeToUiAppend(logTextView, printData("getFileIdsResponse", getFileIdsResponse));
+
+        // check that result if 0x9100 (success) or 0x91AF (success but more data)
+        if ((!checkResponse(getFileIdsResponse)) && (!checkResponseMoreData(getFileIdsResponse))) {
+            // something got wrong (e.g. missing authentication ?)
+            writeToUiAppend(logTextView, "there was an unexpected response");
+            return null;
+        }
+        // if the read result is success 9100 we return the data received so far
+        if (checkResponse(getFileIdsResponse)) {
+            System.arraycopy(returnStatusBytes(getFileIdsResponse), 0, response, 0, 2);
+            byte[] fileListBytes = Arrays.copyOf(getFileIdsResponse, getFileIdsResponse.length - 2);
+            fileIdList = divideArrayToBytes(fileListBytes);
+            return fileIdList;
+        }
+        if (checkResponseMoreData(getFileIdsResponse)) {
+            writeToUiAppend(logTextView, "getFileIdsList: we are asked to grab more data from the card");
+            byte[] fileListBytes = Arrays.copyOf(getFileIdsResponse, getFileIdsResponse.length - 2);
+            fileIdList = divideArrayToBytes(fileListBytes);
+            byte getMoreDataCommand = (byte) 0xaf;
+            boolean readMoreData = true;
+            try {
+                while (readMoreData) {
+                    try {
+                        getFileIdsResponse = isoDep.transceive(wrapMessage(getMoreDataCommand, null));
+                    } catch (Exception e) {
+                        //throw new RuntimeException(e);
+                        writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+                        return null;
+                    }
+                    writeToUiAppend(logTextView, printData("getFileIdsResponse", getFileIdsResponse));
+                    if (checkResponse(getFileIdsResponse)) {
+                        // now we have received all data
+                        List<Byte> fileIdListTemp = new ArrayList<>();
+                        System.arraycopy(returnStatusBytes(getFileIdsResponse), 0, response, 0, 2);
+                        fileListBytes = Arrays.copyOf(getFileIdsResponse, getFileIdsResponse.length - 2);
+                        fileIdListTemp = divideArrayToBytes(fileListBytes);
+                        readMoreData = false; // end the loop
+                        fileIdList.addAll(fileIdListTemp);
+                        return fileIdListTemp;
+                    }
+                    if (checkResponseMoreData(getFileIdsResponse)) {
+                        // some more data will follow, store temp data
+                        List<Byte> fileIdListTemp = new ArrayList<>();
+                        fileListBytes = Arrays.copyOf(getFileIdsResponse, getFileIdsResponse.length - 2);
+                        fileIdListTemp = divideArrayToBytes(fileListBytes);
+                        fileIdList.addAll(fileIdListTemp);
+                        readMoreData = true;
+                    }
+                } // while (readMoreData) {
+            } catch (Exception e) {
+                writeToUiAppend(logTextView, "Exception failure: " + e.getMessage());
+            } // try
+        }
+        return null;
+    }
+
+    // todo work on this
+    private byte[] getFileSettings(TextView logTextView, byte fileNumber, byte[] response) {
+        byte getFileSettingsCommand = (byte) 0xf5;
+        byte[] getFileSettingsParameters = new byte[1];
+        getFileSettingsParameters[0] = fileNumber;
+        byte[] getFileSettingsResponse;
+        try {
+            getFileSettingsResponse = isoDep.transceive(wrapMessage(getFileSettingsCommand, getFileSettingsParameters));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            return null;
+        }
+        writeToUiAppend(logTextView, printData("getFileSettingsResponse", getFileSettingsResponse));
+        System.arraycopy(returnStatusBytes(getFileSettingsResponse), 0, response, 0, 2);
+        if (checkResponse(getFileSettingsResponse)) {
+            return getFileSettingsResponse;
+        } else {
+            return null;
+        }
+    }
+
     /**
      * section for application handling
      */
@@ -753,6 +926,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             int end = Math.min(source.length, start + chunksize);
             result.add(Arrays.copyOfRange(source, start, end));
             start += chunksize;
+        }
+        return result;
+    }
+
+    /**
+     * splits a byte array in chunks of bytes
+     *
+     * @param source
+     * @return a List<Byte>
+     */
+    private static List<Byte> divideArrayToBytes(byte[] source) {
+        List<Byte> result = new ArrayList<Byte>();
+        for (int i = 0; i < source.length; i++) {
+           result.add(source[i]);
         }
         return result;
     }

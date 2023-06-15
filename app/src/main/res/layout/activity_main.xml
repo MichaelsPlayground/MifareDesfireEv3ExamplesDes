@@ -100,6 +100,33 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/etSelectedFileIdLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="8dp"
+                android:hint="selected file id"
+                app:boxCornerRadiusBottomEnd="5dp"
+                app:boxCornerRadiusBottomStart="5dp"
+                app:boxCornerRadiusTopEnd="5dp"
+                app:boxCornerRadiusTopStart="5dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etSelectedFileId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:focusable="false"
+                    android:text="select a file ..."
+                    tools:ignore="KeyboardInaccessibleWidget" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/etSelectedApplicationIdLayout"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
@@ -318,6 +345,14 @@
                         android:text="list" />
 
                     <Button
+                        android:id="@+id/btnSelectFile"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="8dp"
+                        android:layout_weight="1"
+                        android:text="select" />
+
+                    <Button
                         android:id="@+id/btnAuthenticate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -378,6 +413,35 @@
                         android:layout_marginLeft="8dp"
                         android:layout_weight="1"
                         android:text="read O" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginTop="20dp"
+                        android:text="File ID:"
+                        android:textSize="20sp" />
+
+                    <com.shawnlin.numberpicker.NumberPicker
+                        android:id="@+id/npFileId"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        app:np_height="64dp"
+                        app:np_max="31"
+                        app:np_min="0"
+                        app:np_orientation="horizontal"
+                        app:np_selectedTextSize="20sp"
+                        app:np_textSize="16sp"
+                        app:np_value="0"
+                        app:np_width="180dp" />
 
                 </LinearLayout>
 

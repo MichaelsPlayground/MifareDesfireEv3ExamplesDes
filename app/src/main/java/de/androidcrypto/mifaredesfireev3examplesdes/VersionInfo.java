@@ -46,6 +46,8 @@ public class VersionInfo {
     byte[] batchNumber = new byte[5]; //[5];
     private int productionWeek;
     private int productionYear;
+    private byte productionWeekByte;
+    private byte productionYearByte;
 
     // Source: https://github.com/skjolber/external-nfc-api/blob/d1cf337dbfca6d34b6a71fd951e60fb467ea2f01/core/src/main/java/com/github/skjolber/nfc/service/desfire/VersionInfo.java
 
@@ -77,6 +79,9 @@ public class VersionInfo {
 
         productionWeek = din.read();
         productionYear = din.read();
+        productionWeekByte = (byte) (productionWeek & 0xff);
+        productionYearByte = (byte) (productionYear & 0xff);
+
     }
 
     public String getHardwareVersion() {
@@ -239,6 +244,22 @@ public class VersionInfo {
         this.productionYear = productionYear;
     }
 
+    public byte getProductionWeekByte() {
+        return productionWeekByte;
+    }
+
+    public void setProductionWeekByte(byte productionWeekByte) {
+        this.productionWeekByte = productionWeekByte;
+    }
+
+    public byte getProductionYearByte() {
+        return productionYearByte;
+    }
+
+    public void setProductionYearByte(byte productionYearByte) {
+        this.productionYearByte = productionYearByte;
+    }
+
     public String dump() {
         StringBuilder sb = new StringBuilder();
         sb.append("hardwareVendorId: ").append(hardwareVendorId).append("\n");
@@ -263,10 +284,14 @@ public class VersionInfo {
         sb.append("softwareStorageSize: ").append(softwareStorageSize).append("\n");
         sb.append("Uid: ").append(Utils.bytesToHex(uid)).append("\n");
         sb.append("batchNumber: ").append(Utils.bytesToHex(batchNumber)).append("\n");
-        sb.append("productionWeek: ").append(productionWeek).append("\n");
-        sb.append("productionYear: ").append(productionYear).append("\n");
+        sb.append("productionWeek: ").append(byteToHex(productionWeekByte)).append("\n");
+        sb.append("productionYear: ").append(byteToHex(productionYearByte)).append("\n");
         sb.append("*** dump ended ***").append("\n");
         return sb.toString();
+    }
+
+    private String byteToHex(Byte input) {
+        return String.format("%02X", input);
     }
 
 }

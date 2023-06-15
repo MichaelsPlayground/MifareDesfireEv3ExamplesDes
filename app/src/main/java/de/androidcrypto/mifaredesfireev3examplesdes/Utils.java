@@ -56,6 +56,11 @@ public class Utils {
         return result.toString();
     }
 
+    public static String byteToHex(Byte input) {
+        return String.format("%02X", input);
+        //return String.format("0x%02X", input);
+    }
+
     public static byte[] hexStringToByteArray(String s) {
         try {
             int len = s.length();
