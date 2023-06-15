@@ -254,13 +254,21 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             @Override
             public void onClick(View view) {
                 // list all files in a selected application
-
                 byte[] responseData = new byte[2];
                 List<Byte> fileIdList = getFileIdsList(output, responseData);
                 writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
                 if (fileIdList != null) {
                     for (int i = 0; i < fileIdList.size(); i++) {
-                        writeToUiAppend(output, "entry " + i + " file id : " + Utils.byteToHex(fileIdList.get(i)));
+                        byte fileId = fileIdList.get(i);
+                        writeToUiAppend(output, "entry " + i + " file id : " + Utils.byteToHex(fileId));
+
+                        // here we are reading the fileSettings
+                        byte[] fileSettingsBytes = getFileSettings(output, fileId, responseData);
+                        if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
+                            FileSettings fileSettings = new FileSettings(fileId, fileSettingsBytes);
+                            writeToUiAppend(output, fileSettings.dump());
+                            writeToUiAppend(output, "------------------");
+                        }
                     }
                 } else {
                     writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
