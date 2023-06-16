@@ -17,14 +17,16 @@ public class FileSettings {
     private byte accessRightsRwCar; // Right & Write access key | Change access key
     private byte accessRightsRW; // Read access key | Write access key
     private int accessRightsRw, accessRightsCar, accessRightsR, accessRightsW;
-    private byte[] fileSize; // 3 bytes, available for Standard & Backup files only
+    private byte[] fileSize; // 3 bytes, available for Standard & Backup files only, beware: this data is LSB
+    private int fileSizeInt;
     // the following variables are available for value files only
     private byte[] valueMin;
     private byte[] valueMax;
     private byte[] valueLimitedCredit;
     private byte valueLimitedCreditAvailable;
     // the following variables are available for linear record and cyclic record files only
-    private byte[] recordSize; // 3 bytes
+    private byte[] recordSize; // 3 bytes beware: this data is LSB
+    private int recordSizeInt;
     private byte[] recordsMax; // 3 bytes
     private byte[] recordsExisting; // 3 bytes
     private byte[] completeResponse; // the complete data returned on getFileSettings command
@@ -52,9 +54,14 @@ public class FileSettings {
         accessRightsRW = completeResponse[position];
         position ++;
         // todo get the values vor RW, Car, R and W
+        // lowNibble = yourByte & 0x0f; highNibble = (yourByte >> 4) & 0x0f;
+        // You can also do: lowNibble = yourByte & 0x0f; highNibble = yourByte >>> 4;
+
+
         if ((fileType == (byte) 0x00) | (fileType == (byte) 0x01)) {
             // standard and backup file
             fileSize = Arrays.copyOfRange(completeResponse, position, position + 3);
+            fileSizeInt = byteArrayLength3InversedToInt(fileSize);
             return;
         }
         if (fileType == (byte) 0x02) {
@@ -71,6 +78,7 @@ public class FileSettings {
         if ((fileType == (byte) 0x03) | (fileType == (byte) 0x04)) {
             // linear record and cyclic record file
             recordSize = Arrays.copyOfRange(completeResponse, position, position + 3);
+            recordSizeInt = byteArrayLength3InversedToInt(recordSize);
             position += 3;
             recordsMax = Arrays.copyOfRange(completeResponse, position, position + 3);
             position += 3;
@@ -123,7 +131,35 @@ public class FileSettings {
         return (data[2] & 0xff) << 16 | (data[1] & 0xff) << 8 | (data[0] & 0xff);
     }
 
-    public static int byteArrayLength4InversedToInt(byte[] bytes) {
+    private static int byteArrayLength4InversedToInt(byte[] bytes) {
         return bytes[3] << 24 | (bytes[2] & 0xFF) << 16 | (bytes[1] & 0xFF) << 8 | (bytes[0] & 0xFF);
+    }
+
+    public String getFileTypeName() {
+        return fileTypeName;
+    }
+
+    public int getAccessRightsRw() {
+        return accessRightsRw;
+    }
+
+    public int getAccessRightsCar() {
+        return accessRightsCar;
+    }
+
+    public int getAccessRightsR() {
+        return accessRightsR;
+    }
+
+    public int getAccessRightsW() {
+        return accessRightsW;
+    }
+
+    public byte[] getFileSize() {
+        return fileSize;
+    }
+
+    public int getFileSizeInt() {
+        return fileSizeInt;
     }
 }
