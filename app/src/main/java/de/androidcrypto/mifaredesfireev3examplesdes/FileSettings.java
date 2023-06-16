@@ -56,7 +56,10 @@ public class FileSettings {
         // todo get the values vor RW, Car, R and W
         // lowNibble = yourByte & 0x0f; highNibble = (yourByte >> 4) & 0x0f;
         // You can also do: lowNibble = yourByte & 0x0f; highNibble = yourByte >>> 4;
-
+        accessRightsRw = (accessRightsRwCar >> 4) & 0x0f;
+        accessRightsCar = accessRightsRwCar & 0x0f;
+        accessRightsR =  (accessRightsRW >> 4) & 0x0f;
+        accessRightsW =  accessRightsRW & 0x0f;
 
         if ((fileType == (byte) 0x00) | (fileType == (byte) 0x01)) {
             // standard and backup file
@@ -105,7 +108,10 @@ public class FileSettings {
         sb.append("communicationSettings: ").append(byteToHex(communicationSettings)).append(" (").append(communicationSettingsName).append(")").append("\n");
         sb.append("accessRights RW | CAR: ").append(byteToHex(accessRightsRwCar)).append("\n");
         sb.append("accessRights R | W: ").append(byteToHex(accessRightsRW)).append("\n");
-        // todo get the access keys in a single way
+        sb.append("accessRights RW:  ").append(accessRightsRw).append("\n");
+        sb.append("accessRights CAR: ").append(accessRightsCar).append("\n");
+        sb.append("accessRights R:   ").append(accessRightsR).append("\n");
+        sb.append("accessRights W:   ").append(accessRightsW).append("\n");
         if ((fileType == (byte) 0x00) | (fileType == (byte) 0x01)) {
             sb.append("fileSize: ").append(byteArrayLength3InversedToInt(fileSize)).append("\n");
         }

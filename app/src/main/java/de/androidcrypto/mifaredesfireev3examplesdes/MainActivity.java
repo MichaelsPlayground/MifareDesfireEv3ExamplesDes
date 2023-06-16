@@ -68,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private com.google.android.material.textfield.TextInputEditText fileId, fileSize, fileData;
     private String selectedFileId = "";
     private int selectedFileSize;
+    private FileSettings selectedFileSettings;
 
     private int selectedFileKeyRW, selectedFileKeyCar, selectedFileKeyR, selectedFileKeyW; // todo work on this
 
@@ -126,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
         npFileId = findViewById(R.id.npFileId);
         fileSelected = findViewById(R.id.etSelectedFileId);
+
         fileId = findViewById(R.id.etFileId);
         fileSize = findViewById(R.id.etFileSize);
         fileData = findViewById(R.id.etFileData);
@@ -354,15 +356,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         //writeToUiAppend(output, "result of selectApplicationDes: " + result);
                         //writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
 
-                        // todo getFileSettings
                         // here we are reading the fileSettings
                         String outputString = fileList[which] + " ";
                         byte fileIdByte = Byte.parseByte(selectedFileId);
                         byte[] fileSettingsBytes = getFileSettings(output, fileIdByte, responseData);
                         if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
-                            FileSettings fileSettings = new FileSettings(fileIdByte, fileSettingsBytes);
-                            outputString += "(" + fileSettings.getFileTypeName();
-                            selectedFileSize = fileSettings.getFileSizeInt();
+                            selectedFileSettings = new FileSettings(fileIdByte, fileSettingsBytes);
+                            outputString += "(" + selectedFileSettings.getFileTypeName();
+                            selectedFileSize = selectedFileSettings.getFileSizeInt();
                             outputString += " size: " + selectedFileSize + ")";
                             writeToUiAppend(output, outputString);
                         }
@@ -383,8 +384,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // get the input and sanity checks
                 clearOutputFields();
 
-                // the number of files on an EV1 is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 14 files
-                // this limit is setup in the XML file
+                // the number of files on an EV1 tag is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 15 files (00..14)
+                // this limit is hardcoded in the XML file for the fileId numberPicker
 
                 // this uses the numberPicker
                 byte fileIdByte = (byte) (npFileId.getValue() & 0xFF);
