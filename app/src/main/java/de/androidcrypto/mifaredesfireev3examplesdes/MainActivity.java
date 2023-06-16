@@ -1,7 +1,11 @@
 package de.androidcrypto.mifaredesfireev3examplesdes;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.IsoDep;
@@ -9,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,8 +26,11 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import com.google.android.material.textfield.TextInputLayout;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +39,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
     private com.google.android.material.textfield.TextInputEditText output, errorCode;
+    private com.google.android.material.textfield.TextInputLayout errorCodeLayout;
 
     /**
      * section for general workflow
@@ -52,11 +61,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     private LinearLayout llStandardFile;
-    private Button fileList, fileSelect, fileStandardCreate, fileStandardRead, authenticate;
+    private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead, authenticate;
     private com.shawnlin.numberpicker.NumberPicker npFileId;
 
     private com.google.android.material.textfield.TextInputEditText fileSelected;
-    private com.google.android.material.textfield.TextInputEditText fileId, fileSize;
+    private com.google.android.material.textfield.TextInputEditText fileId, fileSize, fileData;
     private String selectedFileId = "";
     // old routines
     private Button fileStandardCreateOld;
@@ -70,6 +79,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private static final byte PERMISSION_DENIED = (byte) 0x9D;
     private static final byte AUTHENTICATION_ERROR = (byte) 0xAE;
     private static final byte ADDITIONAL_FRAME = (byte) 0xAF;
+
+    int COLOR_GREEN = Color.rgb(0,255,0);
+    int COLOR_RED = Color.rgb(255,0,0);
 
     // variables for NFC handling
 
@@ -87,6 +99,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         output = findViewById(R.id.etOutput);
         errorCode = findViewById(R.id.etErrorCode);
+        errorCodeLayout = findViewById(R.id.etErrorCodeLayout);
 
         // general workflow
         tagVersion = findViewById(R.id.btnGetTagVersion);
@@ -105,17 +118,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileSelect = findViewById(R.id.btnSelectFile);
         authenticate = findViewById(R.id.btnAuthenticate);
         fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
+        fileStandardWrite = findViewById(R.id.btnWriteStandardFile);
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
         npFileId = findViewById(R.id.npFileId);
         fileSelected = findViewById(R.id.etSelectedFileId);
         fileId = findViewById(R.id.etFileId);
         fileSize = findViewById(R.id.etFileSize);
+        fileData = findViewById(R.id.etFileData);
         // old ones
         fileStandardCreateOld = findViewById(R.id.btnCreateStandardFileOld);
 
         allLayoutsInvisible(); // default
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+
 
         /**
          * section for general workflow
@@ -125,13 +141,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             @Override
             public void onClick(View view) {
                 // get the tag version data
-
+                clearOutputFields();
                 VersionInfo versionInfo = null;
                 try {
                     versionInfo = getVersionInfo(output);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "success in getting tagVersion", COLOR_GREEN);
                 } catch (Exception e) {
                     //throw new RuntimeException(e);
-                    writeToUiAppend(errorCode, "getTagVersion Exception: " + e.getMessage());
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getTagVersion Exception: " + e.getMessage(), COLOR_RED);
                     e.printStackTrace();
                 }
                 if (versionInfo != null) {
@@ -150,13 +167,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 clearOutputFields();
                 byte[] responseData = new byte[2];
                 List<byte[]> applicationIdList = getApplicationIdsList(output, responseData);
-                writeToUiAppend(errorCode, "getApplicationIdsList: " + Ev3.getErrorCode(responseData));
+                //writeToUiAppend(errorCode, "getApplicationIdsList: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
                 if (applicationIdList != null) {
                     for (int i = 0; i < applicationIdList.size(); i++) {
                         writeToUiAppend(output, "entry " + i + " app id : " + Utils.bytesToHex(applicationIdList.get(i)));
                     }
                 } else {
-                    writeToUiAppend(errorCode, "getApplicationIdsList: returned NULL");
+                    //writeToUiAppend(errorCode, "getApplicationIdsList: returned NULL");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList returned NULL", COLOR_RED);
                 }
             }
         });
@@ -170,17 +190,21 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte numberOfKeysByte = Byte.parseByte(numberOfKeys.getText().toString());
                 byte[] applicationIdentifier = Utils.hexStringToByteArray(applicationId.getText().toString());
                 if (applicationIdentifier == null) {
-                    writeToUiAppend(errorCode, "you entered a wrong application ID");
+                    //writeToUiAppend(errorCode, "you entered a wrong application ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong application ID", COLOR_RED);
                     return;
                 }
                 if (applicationIdentifier.length != 3) {
-                    writeToUiAppend(errorCode, "you did not enter a 6 hex string application ID");
+                    //writeToUiAppend(errorCode, "you did not enter a 6 hex string application ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you did not enter a 6 hex string application ID", COLOR_RED);
                     return;
                 }
                 byte[] responseData = new byte[2];
                 boolean result = createApplicationPlainDes(output, applicationIdentifier, numberOfKeysByte, responseData);
                 writeToUiAppend(output, "result of createAnApplication: " + result);
-                writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAnApplication: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
 
@@ -191,13 +215,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 clearOutputFields();
                 byte[] responseData = new byte[2];
                 List<byte[]> applicationIdList = getApplicationIdsList(output, responseData);
-                writeToUiAppend(errorCode, "getApplicationIdsList: " + Ev3.getErrorCode(responseData));
+                //writeToUiAppend(errorCode, "getApplicationIdsList: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
                 if (applicationIdList != null) {
                     for (int i = 0; i < applicationIdList.size(); i++) {
                         // writeToUiAppend(output, "entry " + i + " app id : " + Utils.bytesToHex(applicationIdList.get(i)));
                     }
                 } else {
-                    writeToUiAppend(errorCode, "getApplicationIdsList: returned NULL");
+                    //writeToUiAppend(errorCode, "getApplicationIdsList: returned NULL");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList returned NULL", COLOR_RED);
                     return;
                 }
                 String[] applicationList = new String[applicationIdList.size()];
@@ -221,8 +248,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         byte[] responseData = new byte[2];
                         boolean result = selectApplicationDes(output, selectedApplicationId, responseData);
                         writeToUiAppend(output, "result of selectApplicationDes: " + result);
-                        writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
-
+                        //writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
+                        int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
                         applicationSelected.setText(applicationList[which]);
                     }
                 });
@@ -246,7 +274,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte keyId = (byte) 0x00; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
                 writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
-                writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
 
@@ -256,7 +286,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // list all files in a selected application
                 byte[] responseData = new byte[2];
                 List<Byte> fileIdList = getFileIdsList(output, responseData);
-                writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
+                //writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getFileIdsList: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
                 if (fileIdList != null) {
                     for (int i = 0; i < fileIdList.size(); i++) {
                         byte fileId = fileIdList.get(i);
@@ -271,7 +304,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         }
                     }
                 } else {
-                    writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                    //writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getFileIdsList returned NULL", COLOR_RED);
                 }
 
             }
@@ -290,7 +324,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         writeToUiAppend(output, "entry " + i + " file id : " + Utils.byteToHex(fileIdList.get(i)));
                     }
                 } else {
-                    writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                    //writeToUiAppend(errorCode, "getFileIdsList: returned NULL");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getFileIdsList returned NULL", COLOR_RED);
                     return;
                 }
                 String[] fileList = new String[fileIdList.size()];
@@ -302,9 +337,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 AlertDialog.Builder builder = new AlertDialog.Builder(view.getContext());
                 builder.setTitle("Choose a file");
 
-                // add a list
-                //String[] animals = {"horse", "cow", "camel", "sheep", "goat"};
-                //builder.setItems(animals, new DialogInterface.OnClickListener() {
                 builder.setItems(fileList, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -334,7 +366,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // get the input and sanity checks
                 clearOutputFields();
 
-                // the number of files on an EV1 is limited to 32 (00..31)
+                // the number of files on an EV1 is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 14 files
                 // this limit is setup in the XML file
 
                 // this uses the numberPicker
@@ -343,17 +375,67 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
                 int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
                 if (fileIdByte > (byte) 0x0f) {
-                    writeToUiAppend(errorCode, "you entered a wrong file ID");
+                    //writeToUiAppend(errorCode, "you entered a wrong file ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
                     return;
                 }
                 if (fileSizeInt != 32) {
-                    writeToUiAppend(errorCode, "you entered a wrong file size, 32 bytes allowed only");
+                    //writeToUiAppend(errorCode, "you entered a wrong file size, 32 bytes allowed only");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
                     return;
                 }
                 byte[] responseData = new byte[2];
                 boolean result = createStandardFile(output, fileIdByte, fileSizeInt, responseData);
-                writeToUiAppend(output, "result of createAStandardFile: " + result);
-                writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+                writeToUiAppend(output, "result of createAStandardFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt);
+                //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        fileStandardWrite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // write to a selected standard file in a selected application
+                clearOutputFields();
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                String dataToWrite = fileData.getText().toString();
+                if (TextUtils.isEmpty(dataToWrite)) {
+                    //writeToUiAppend(errorCode, "please enter some data to write");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "please enter some data to write", COLOR_RED);
+                    return;
+                }
+                byte fileIdByte = Byte.parseByte(selectedFileId);
+
+                byte[] responseData = new byte[2];
+                boolean result = writeToStandardFile(output, fileIdByte, dataToWrite.getBytes(StandardCharsets.UTF_8), responseData);
+                writeToUiAppend(output, "result of writeToStandardFile: " + result + " ID: " + fileIdByte + " data: " + dataToWrite);
+                //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getApplicationIdsList: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        fileStandardRead.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // read from a preselected standard file
+                clearOutputFields();
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+
+
+
             }
         });
 
@@ -364,34 +446,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                 // select application and create a standard file
 
-                writeToUiAppend(output, "");
-                writeToUiAppend(output, "create a Standard File");
-/*
-                // select the application
-                byte[] responseData = new byte[2];
-                boolean selectApplicationSuccess = selectApplicationDes(output, AID_DesStandard, responseData);
-                writeToUiAppend(output, "selectApplication success: " + selectApplicationSuccess + " with response: " + Utils.bytesToHex(responseData));
 
-                // authenticate
-                responseData = new byte[2];
-                // we set the rw + car rights to key 0 so we need to authenticate with key 0 first to proceed
-                boolean authenticateSuccess = authenticateApplicationDes(output, AID_DesStandard_Key0_Number, AID_DesStandard_Key0, false, responseData);
-                writeToUiAppend(output, "authenticateApplication result: " + authenticateSuccess + " with response: " + Utils.bytesToHex(responseData));
-                if (!authenticateSuccess) {
-                    writeToUiAppend(output, "the authentication was not successful, aborted");
-                    return;
-                }
-
-                // create the standard file
-                responseData = new byte[2];
-                boolean createStandardFileSuccess = createStandardFile(output, DesStandardFileFileNumber1, responseData);
-                writeToUiAppend(output, "createStandardFile result: " + createStandardFileSuccess + " with response: " + Utils.bytesToHex(responseData));
-                if (!createStandardFileSuccess) {
-                    writeToUiAppend(output, "the createStandardFile was not successful, aborted");
-                    return;
-                }
-
- */
             }
         });
 
@@ -536,11 +591,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             //System.arraycopy(createApplicationResponse, 0, response, 0, createApplicationResponse.length);
             if (Arrays.equals(rndA, rndAFromCard)) {
                 writeToUiAppend(logTextView, "Authenticated");
-                response = new byte[]{(byte) 0x91, (byte) 0x00};
+                byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0x00};
+                System.arraycopy(responseManual, 0, response, 0, 2);
                 return true;
             } else {
                 writeToUiAppend(logTextView, "Authentication failed");
-                response = new byte[]{(byte) 0x91, (byte) 0xFF};
+                byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+                System.arraycopy(responseManual, 0, response, 0, 2);
                 return false;
                 //System.err.println(" ### Authentication failed. ### ");
                 //log("rndA:" + toHexString(rndA) + ", rndA from Card: " + toHexString(rndAFromCard));
@@ -606,6 +663,46 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             return true;
         }
         if (checkResponse(createStandardFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // note: we don't need to commit any write on Standard Files
+    private boolean writeToStandardFile(TextView logTextView, byte fileNumber, byte[] data, byte[] response) {
+        // some sanity checks to avoid any issues
+        if (fileNumber < (byte) 0x00) return false;
+        if (fileNumber > (byte) 0x0F) return false;
+        if (data == null) return false;
+        if (data.length == 0) return false;
+        if (data.length > 32) return false; // todo work with maximum in fileSettings
+
+        // write to file
+        byte writeStandardFileCommand = (byte) 0x3d;
+        int numberOfBytes = data.length;
+        byte[] offset = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00}; // no offset
+        byte[] length = Utils.intTo3ByteArrayInversed(numberOfBytes);
+        //byte[] length = new byte[]{(byte) (numberOfBytes & 0xFF), (byte) 0xf00, (byte) 0x00}; // 32 bytes
+        byte[] writeStandardFileParameters = new byte[(7 + data.length)]; // if encrypted we need to append the CRC
+        writeStandardFileParameters[0] = fileNumber;
+        System.arraycopy(offset, 0, writeStandardFileParameters, 1, 3); // offset
+        System.arraycopy(length, 0, writeStandardFileParameters, 4, 3); // length of data
+        System.arraycopy(data, 0, writeStandardFileParameters, 7, data.length); // the data
+
+        writeToUiAppend(logTextView, printData("writeStandardFileParameters", writeStandardFileParameters));
+        byte[] writeStandardFileResponse = new byte[0];
+        try {
+            writeStandardFileResponse = isoDep.transceive(wrapMessage(writeStandardFileCommand, writeStandardFileParameters));
+            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(writeStandardFileCommand, writeStandardFileParameters)));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("writeStandardFileResponse", writeStandardFileResponse));
+        System.arraycopy(returnStatusBytes(writeStandardFileResponse), 0, response, 0, 2);
+        if (checkResponse(writeStandardFileResponse)) {
             return true;
         } else {
             return false;
@@ -1056,6 +1153,37 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         });
     }
 
+    private void writeToUiAppendBorderColor(TextView textView, TextInputLayout textInputLayout, String message, int color) {
+        runOnUiThread(() -> {
+
+            // set the color to green
+            //Color from rgb
+            // int color = Color.rgb(255,0,0); // red
+            //int color = Color.rgb(0,255,0); // green
+            //Color from hex string
+            //int color2 = Color.parseColor("#FF11AA"); light blue
+            int[][] states = new int[][] {
+                    new int[] { android.R.attr.state_focused}, // focused
+                    new int[] { android.R.attr.state_hovered}, // hovered
+                    new int[] { android.R.attr.state_enabled}, // enabled
+                    new int[] { }  //
+            };
+            int[] colors = new int[] {
+                    color,
+                    color,
+                    color,
+                    //color2
+                    color
+            };
+            ColorStateList myColorList = new ColorStateList(states, colors);
+            textInputLayout.setBoxStrokeColorStateList(myColorList);
+
+            String newString = message + "\n" + textView.getText().toString();
+            textView.setText(newString);
+            System.out.println(message);
+        });
+    }
+
     public String printData(String dataName, byte[] data) {
         int dataLength;
         String dataString = "";
@@ -1079,6 +1207,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private void clearOutputFields() {
         output.setText("");
         errorCode.setText("");
+        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "", R.color.colorPrimary);
     }
 
     /**

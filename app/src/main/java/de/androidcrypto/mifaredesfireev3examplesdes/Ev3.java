@@ -1,6 +1,16 @@
 package de.androidcrypto.mifaredesfireev3examplesdes;
 
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Color;
+import android.nfc.tech.IsoDep;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+
+import java.io.ByteArrayOutputStream;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -32,11 +42,31 @@ public class Ev3 {
             case (byte) 0x9D: return "9D Permission denied error";
             case (byte) 0x9e: return "9E Parameter error";
             //case (byte) 0x: return " error";
-
+            case (byte) 0xAE: return "AE authentication error";
             case (byte) 0xDE: return "DE duplicate error";
 
         }
         return "undefined error code";
+    }
+
+    public static int getColorFromErrorCode(byte[] twoByteResponse) {
+        int colorRed = Color.rgb(255,0,0); // red
+        int colorGreen = Color.rgb(0,255,0); // green
+        if (twoByteResponse == null) {
+            return colorRed;
+        }
+        if (twoByteResponse.length != 2) {
+            return colorRed;
+        }
+        byte sw1 = twoByteResponse[0];
+        if (sw1 != (byte) 0x91) {
+            return colorRed;
+        }
+        if (twoByteResponse[1] == (byte) 0x00) {
+            return colorGreen;
+        } else {
+            return colorRed;
+        }
     }
 
     /**
@@ -96,7 +126,5 @@ public class Ev3 {
         secureRandom.nextBytes(value);
         return value;
     }
-
-
 
 }
