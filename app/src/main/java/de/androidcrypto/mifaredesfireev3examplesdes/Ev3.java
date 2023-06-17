@@ -35,6 +35,7 @@ public class Ev3 {
             case (byte) 0x0c: return "0C no change";
             case (byte) 0x0e: return "0E out of EPROM memory";
             case (byte) 0x1c: return "1C illegal command";
+            case (byte) 0x1e: return "1E integrity command";
             case (byte) 0x40: return "40 No such key error";
             case (byte) 0x6e: return "6E Error (ISO?) error";
             case (byte) 0x7e: return "7E Length error";

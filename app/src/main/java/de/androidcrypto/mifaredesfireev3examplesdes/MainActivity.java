@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -57,12 +58,35 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private byte[] selectedApplicationId = null;
 
     /**
+     * section for authentication
+     */
+
+    private Button authKeyD1;
+
+    /**
+     * section for key handling
+     */
+
+    private Button changeKeyD2;
+
+    private byte KEY_NUMBER_USED_FOR_AUTHENTICATION; // the key number used for a successful authentication
+    private byte[] SESSION_KEY_DES; // filled in authenticate, simply the first (leftmost) 8 bytes of SESSION_KEY_TDES
+    private byte[] SESSION_KEY_TDES; // filled in authenticate
+    private byte[] DES_DEFAULT_KEY = new byte[8]; // 8 zero bytes
+
+    private byte[] DES_KEY_D0 = Utils.hexStringToByteArray("D000000000000000"); // key number 0 is for read&write access
+    private byte[] DES_KEY_D1 = Utils.hexStringToByteArray("D100000000000000"); // key number 1 is for change access keys
+    private byte[] DES_KEY_D2 = Utils.hexStringToByteArray("D200000000000000"); // key number 2 is for read access
+    private byte[] DES_KEY_D3 = Utils.hexStringToByteArray("D300000000000000"); // key number 3 is for write access
+
+    /**
      * section for standard file handling
      */
 
     private LinearLayout llStandardFile;
     private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead, authenticate;
     private com.shawnlin.numberpicker.NumberPicker npFileId;
+
 
     private com.google.android.material.textfield.TextInputEditText fileSelected;
     private com.google.android.material.textfield.TextInputEditText fileId, fileSize, fileData;
@@ -78,7 +102,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // constants
     public static final byte GET_VERSION_INFO = (byte) 0x60;
     private static final byte GET_ADDITIONAL_FRAME = (byte) 0xAF;
-    private byte[] DES_DEFAULT_KEY = new byte[8];
+
+
+
+
+
     // Status codes (Section 3.4)
     private static final byte OPERATION_OK = (byte) 0x00;
     private static final byte PERMISSION_DENIED = (byte) 0x9D;
@@ -93,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private NfcAdapter mNfcAdapter;
     private IsoDep isoDep;
     private byte[] tagIdByte;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +146,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         applicationSelected = findViewById(R.id.etSelectedApplicationId);
         numberOfKeys = findViewById(R.id.etNumberOfKeys);
         applicationId = findViewById(R.id.etApplicationId);
+
+        // authentication handling
+        authKeyD1 = findViewById(R.id.btnAuthD1);
+
+        // key handling
+        changeKeyD2 = findViewById(R.id.btnChangeKeyD2);
+
         // standard file handling
         llStandardFile = findViewById(R.id.llStandardFile);
         fileList = findViewById(R.id.btnListFiles);
@@ -266,6 +302,53 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        /**
+         * section for authentication
+         */
+
+        authKeyD1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 1 (CAR) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+
+        /**
+         * section for key handling
+         */
+
+        changeKeyD2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 2 (read access) from default to D200...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                byte KEY_NUMBER_TO_CHANGE = 2;
+
+                boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_DEFAULT_KEY, DES_KEY_D2, responseData);
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
 
         /**
          * section  for standard files
@@ -276,10 +359,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // authenticate with the default DES key
                 clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
                 byte[] responseData = new byte[2];
-                byte keyId = (byte) 0x00; // we authenticate with keyId 1
+                byte keyId = (byte) 0x00; // we authenticate with keyId 0
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
                 writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
                 //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
@@ -616,6 +705,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 writeToUiAppend(logTextView, "Authenticated");
                 byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0x00};
                 System.arraycopy(responseManual, 0, response, 0, 2);
+                // now generate the session key
+                SESSION_KEY_TDES = generateD40SessionKey(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+                // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_DES only
+                SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
                 return true;
             } else {
                 writeToUiAppend(logTextView, "Authentication failed");
@@ -636,6 +729,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
         //System.arraycopy(createApplicationResponse, 0, response, 0, createApplicationResponse.length);
         return false;
+    }
+
+    private static byte[] generateD40SessionKey(byte[] randA, byte[] randB) {
+        // this IS NOT described in the manual !!!
+        /*
+        RndA = 0000000000000000, RndB = A1A2A3A4A5A6A7A8
+        sessionKey = 00000000A1A2A3A400000000A1A2A3A4 (16 byte
+         */
+        byte[] skey = new byte[16];
+        System.arraycopy(randA, 0, skey, 0, 4);
+        System.arraycopy(randB, 0, skey, 4, 4);
+        System.arraycopy(randA, 0, skey, 8, 4);
+        System.arraycopy(randB, 0, skey, 12, 4);
+        return skey;
     }
 
     /**
@@ -1000,6 +1107,139 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    /**
+     * section for key handling
+     */
+
+    private boolean changeKeyDes(TextView logTextView, byte keyNumber, byte[] oldKey, byte[] newKey, byte[] response) {
+        // sanity checks
+        if (keyNumber > (byte) 0x0f) return false; // todo this check is incomplete, use maximum key number from key settings
+        if ((oldKey == null) | (newKey == null)) return false;
+        if (oldKey.length != 8) return false;
+        if (newKey.length != 8) return false;
+        if (SESSION_KEY_DES == null) return false;
+
+        System.out.println("ChangeKeyDes keyNumber: " + Utils.byteToHex(keyNumber) + " is authenticated with keyNr " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+        System.out.println(printData("oldKey", oldKey));
+        System.out.println(printData("newKey", newKey));
+
+        // this method is using a fixed key version
+        byte KEY_VERSION = 0;
+        byte[] plaintext = new byte[24]; // this is the final array
+        int nklen = 16;
+        System.out.println(printData("newKey before setKeyVersion", newKey));
+        setKeyVersion(newKey, 0, newKey.length, KEY_VERSION);
+        System.arraycopy(newKey, 0, plaintext, 0, newKey.length);
+        System.out.println(printData("newKey after", newKey));
+        System.out.println(printData("plaintext", plaintext));
+        // 8-byte DES keys accepted: internally have to be handled w/ 16 bytes
+        System.arraycopy(newKey, 0, plaintext, 8, newKey.length);
+        newKey = Arrays.copyOfRange(plaintext, 0, 16);
+        System.out.println(printData("newKey TDES", newKey));
+
+        // xor the new key with the old key if a key is changed different to authentication
+        if ((keyNumber & 0x0F) != KEY_NUMBER_USED_FOR_AUTHENTICATION) {
+            for (int i = 0; i < newKey.length; i++) {
+                plaintext[i] ^= oldKey[i % oldKey.length];
+            }
+        }
+        System.out.println(printData("plaintext", plaintext));
+
+        byte[] crc;
+        int addDesKeyVersionByte = (byte) 0x00;
+
+        crc = CRC16.get(plaintext, 0, nklen + addDesKeyVersionByte);
+        System.arraycopy(crc, 0, plaintext, nklen + addDesKeyVersionByte, 2);
+
+        if ((keyNumber & 0x0F) != KEY_NUMBER_USED_FOR_AUTHENTICATION) {
+            crc = CRC16.get(newKey);
+            System.arraycopy(crc, 0, plaintext, nklen + addDesKeyVersionByte + 2, 2);
+        }
+
+        byte[] ciphertext = null;
+        ciphertext = decrypt(SESSION_KEY_DES, plaintext);
+        System.out.println(printData("ciphertext", ciphertext));
+
+        byte changeKeyCommand = (byte) 0xc4;
+        byte[] apdu = new byte[5 + 1 + ciphertext.length + 1];
+        apdu[0] = (byte) 0x90;
+        apdu[1] = changeKeyCommand;
+        apdu[4] = (byte) (1 + plaintext.length);
+        apdu[5] = keyNumber;
+        System.arraycopy(ciphertext, 0, apdu, 6, ciphertext.length);
+        System.out.println(printData("apdu", apdu));
+
+        byte[] changeKeyDesResponse = new byte[0];
+        try {
+            //response = isoDep.transceive(wrapMessage(selectApplicationCommand, applicationIdentifier));
+            changeKeyDesResponse = isoDep.transceive(apdu);
+            writeToUiAppend(logTextView, printData("changeKeyDesResponse", changeKeyDesResponse));
+            System.arraycopy(returnStatusBytes(changeKeyDesResponse), 0, response, 0, 2);
+            //System.arraycopy(selectApplicationResponse, 0, response, 0, selectApplicationResponse.length);
+            if (checkResponse(changeKeyDesResponse)) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "changeKeyDes transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+    }
+
+    /**
+     * Set the version on a DES key. Each least significant bit of each byte of
+     * the DES key, takes one bit of the version. Since the version is only
+     * one byte, the information is repeated if dealing with 16/24-byte keys.
+     *
+     * @param a			1K/2K/3K 3DES
+     * @param offset	start position of the key within a
+     * @param length	key length
+     * @param version	the 1-byte version
+     * Source: DESFireEV1.java (NFCJLIB)
+     */
+    private static void setKeyVersion(byte[] a, int offset, int length, byte version) {
+        if (length == 8 || length == 16 || length == 24) {
+            for (int i = offset + length - 1, j = 0; i >= offset; i--, j = (j + 1) % 8) {
+                a[i] &= 0xFE;
+                a[i] |= ((version >>> j) & 0x01);
+            }
+        }
+    }
+
+    // DES/3DES decryption: CBC send mode and CBC receive mode
+    // here fixed to SEND_MODE = decrypt
+    private static byte[] decrypt(byte[] key, byte[] data) {
+        byte[] modifiedKey = new byte[24];
+        System.arraycopy(key, 0, modifiedKey, 16, 8);
+        System.arraycopy(key, 0, modifiedKey, 8, 8);
+        System.arraycopy(key, 0, modifiedKey, 0, key.length);
+
+        /* MF3ICD40, which only supports DES/3DES, has two cryptographic
+         * modes of operation (CBC): send mode and receive mode. In send mode,
+         * data is first XORed with the IV and then decrypted. In receive
+         * mode, data is first decrypted and then XORed with the IV. The PCD
+         * always decrypts. The initial IV, reset in all operations, is all zeros
+         * and the subsequent IVs are the last decrypted/plain block according with mode.
+         *
+         * MDF EV1 supports 3K3DES/AES and remains compatible with MF3ICD40.
+         */
+        byte[] ciphertext = new byte[data.length];
+        byte[] cipheredBlock = new byte[8];
+
+                // XOR w/ previous ciphered block --> decrypt
+                for (int i = 0; i < data.length; i += 8) {
+                    for (int j = 0; j < 8; j++) {
+                        data[i + j] ^= cipheredBlock[j];
+                    }
+                    cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
+                    System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
+                }
+        return ciphertext;
+    }
 
     /**
      * section for command and response handling
