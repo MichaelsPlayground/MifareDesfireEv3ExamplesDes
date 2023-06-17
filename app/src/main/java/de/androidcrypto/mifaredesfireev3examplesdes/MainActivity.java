@@ -61,23 +61,36 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * section for authentication
      */
 
-    private Button authKeyD1;
+    private Button authKeyD0, authKeyD1, authKeyD2, authKeyD3, authKeyD4;
 
     /**
      * section for key handling
      */
 
-    private Button changeKeyD2;
+    private Button changeKeyD2, changeKeyD3, changeKeyD4;
 
     private byte KEY_NUMBER_USED_FOR_AUTHENTICATION; // the key number used for a successful authentication
     private byte[] SESSION_KEY_DES; // filled in authenticate, simply the first (leftmost) 8 bytes of SESSION_KEY_TDES
     private byte[] SESSION_KEY_TDES; // filled in authenticate
-    private byte[] DES_DEFAULT_KEY = new byte[8]; // 8 zero bytes
+    private final byte[] DES_DEFAULT_KEY = new byte[8]; // 8 zero bytes
 
-    private byte[] DES_KEY_D0 = Utils.hexStringToByteArray("D000000000000000"); // key number 0 is for read&write access
-    private byte[] DES_KEY_D1 = Utils.hexStringToByteArray("D100000000000000"); // key number 1 is for change access keys
-    private byte[] DES_KEY_D2 = Utils.hexStringToByteArray("D200000000000000"); // key number 2 is for read access
-    private byte[] DES_KEY_D3 = Utils.hexStringToByteArray("D300000000000000"); // key number 3 is for write access
+
+    private final byte[] DES_KEY_DEFAULT = new byte[8]; // 8 zero bytes
+    private final byte[] DES_KEY_D0_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 0 is the application master key
+    private final byte[] DES_KEY_D1_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 1 is for read&write access keys
+    private final byte[] DES_KEY_D2_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 2 is for change access keys
+    private final byte[] DES_KEY_D3_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 3 is for read access
+    private final byte[] DES_KEY_D4_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 4 is for write access
+    private final byte[] DES_KEY_D0 = Utils.hexStringToByteArray("D000000000000000"); // key number 0 is the application master key
+    private final byte[] DES_KEY_D1 = Utils.hexStringToByteArray("D100000000000000"); // key number 1 is for read&write access keys
+    private final byte[] DES_KEY_D2 = Utils.hexStringToByteArray("D200000000000000"); // key number 2 is for change access keys
+    private final byte[] DES_KEY_D3 = Utils.hexStringToByteArray("D300000000000000"); // key number 3 is for read access
+    private final byte[] DES_KEY_D4 = Utils.hexStringToByteArray("D400000000000000"); // key number 4 is for write access
+    private final byte DES_KEY_D0_NUMBER = (byte) 0x00;
+    private final byte DES_KEY_D1_NUMBER = (byte) 0x01;
+    private final byte DES_KEY_D2_NUMBER = (byte) 0x02;
+    private final byte DES_KEY_D3_NUMBER = (byte) 0x03;
+    private final byte DES_KEY_D4_NUMBER = (byte) 0x04;
 
     /**
      * section for standard file handling
@@ -148,10 +161,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         applicationId = findViewById(R.id.etApplicationId);
 
         // authentication handling
+        authKeyD0 = findViewById(R.id.btnAuthD0);
         authKeyD1 = findViewById(R.id.btnAuthD1);
+        authKeyD3 = findViewById(R.id.btnAuthD3);
+        authKeyD4 = findViewById(R.id.btnAuthD4);
 
         // key handling
         changeKeyD2 = findViewById(R.id.btnChangeKeyD2);
+        changeKeyD3 = findViewById(R.id.btnChangeKeyD3);
+        changeKeyD4 = findViewById(R.id.btnChangeKeyD4);
 
         // standard file handling
         llStandardFile = findViewById(R.id.llStandardFile);
@@ -306,6 +324,27 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
          * section for authentication
          */
 
+        authKeyD0.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
+                boolean result = authenticateApplicationDes(output, DES_KEY_D0_NUMBER, DES_KEY_D0_DEFAULT, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D0_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
         authKeyD1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -318,6 +357,48 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
                 writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
                 KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 3 (R) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D3_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 4 (W) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D4_NUMBER;
                 writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
                 writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
                 writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
@@ -341,6 +422,46 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte KEY_NUMBER_TO_CHANGE = 2;
 
                 boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_DEFAULT_KEY, DES_KEY_D2, responseData);
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        changeKeyD3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 3 (read access) from default to D300...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                writeToUiAppend(output, "changeKeyDes: "
+                        + Utils.byteToHex(DES_KEY_D3_NUMBER)
+                        + " from " + printData("oldValue", DES_KEY_D3_DEFAULT)
+                        + " to " + printData("newValue", DES_KEY_D3));
+                boolean result = changeKeyDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, DES_KEY_D3, responseData);
+
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        changeKeyD4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 4 (write access) from default to D400...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                writeToUiAppend(output, "changeKeyDes: "
+                        + Utils.byteToHex(DES_KEY_D4_NUMBER)
+                        + " from " + printData("oldValue", DES_KEY_D4_DEFAULT)
+                        + " to " + printData("newValue", DES_KEY_D4));
+                boolean result = changeKeyDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, DES_KEY_D4, responseData);
+
                 writeToUiAppend(output, "result of changeKeyDes: " + result);
                 //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
@@ -769,9 +890,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 - Read&Write Access
                 - ChangeAccessRights
                  */
-        // here we are using key 2 for read and key3 for write access access, key0 has read&write access and key1 has change rights !
-        byte accessRightsRwCar = (byte) 0x01; // Read&Write Access & ChangeAccessRights
-        byte accessRightsRW = (byte) 0x23; // Read Access & Write Access // read with key 1, write with key 2
+        // the application master key is key 0
+        // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
+        byte accessRightsRwCar = (byte) 0x12; // Read&Write Access & ChangeAccessRights
+        byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
         byte[] fileSizeArray = Utils.intTo3ByteArrayInversed(fileSize); // lsb
         byte[] createStandardFileParameters = new byte[7];
         createStandardFileParameters[0] = fileNumber;
@@ -1155,10 +1277,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             crc = CRC16.get(newKey);
             System.arraycopy(crc, 0, plaintext, nklen + addDesKeyVersionByte + 2, 2);
         }
-
+        System.out.println(printData("plaintext before encryption", plaintext));
         byte[] ciphertext = null;
         ciphertext = decrypt(SESSION_KEY_DES, plaintext);
-        System.out.println(printData("ciphertext", ciphertext));
+        System.out.println(printData("ciphertext after encryption", ciphertext));
 
         byte changeKeyCommand = (byte) 0xc4;
         byte[] apdu = new byte[5 + 1 + ciphertext.length + 1];
@@ -1213,6 +1335,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // DES/3DES decryption: CBC send mode and CBC receive mode
     // here fixed to SEND_MODE = decrypt
     private static byte[] decrypt(byte[] key, byte[] data) {
+
+        /* this method
+        plaintext before encryption length: 24 data: d400000000000000d4000000000000007f917f9100000000
+        ciphertext after encryption length: 24 data: 3b93de449348de6a16c92664a51d152d5d07194befeaa71d
+         */
+        /* method from DESFireEV1.java
+        plaintext before encryption: d400000000000000d4000000000000007f917f9100000000
+        ciphertext after encryption: 2c1ba72be0074ee529f8b450bfe42a465196116967b8272f
+         */
+
+
         byte[] modifiedKey = new byte[24];
         System.arraycopy(key, 0, modifiedKey, 16, 8);
         System.arraycopy(key, 0, modifiedKey, 8, 8);
@@ -1456,9 +1589,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private void writeToUiAppend(TextView textView, String message) {
         runOnUiThread(() -> {
-            String newString = message + "\n" + textView.getText().toString();
-            textView.setText(newString);
-            System.out.println(message);
+            String oldString = textView.getText().toString();
+            if (TextUtils.isEmpty(oldString)) {
+                textView.setText(message);
+            } else {
+                String newString = message + "\n" + oldString;
+                textView.setText(newString);
+                System.out.println(message);
+            }
         });
     }
 
@@ -1487,9 +1625,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             ColorStateList myColorList = new ColorStateList(states, colors);
             textInputLayout.setBoxStrokeColorStateList(myColorList);
 
-            String newString = message + "\n" + textView.getText().toString();
-            textView.setText(newString);
-            System.out.println(message);
+            String oldString = textView.getText().toString();
+            if (TextUtils.isEmpty(oldString)) {
+                textView.setText(message);
+            } else {
+                String newString = message + "\n" + oldString;
+                textView.setText(newString);
+                System.out.println(message);
+            }
         });
     }
 

@@ -186,20 +186,20 @@
                         android:text="tag version" />
 
                     <Button
-                        android:id="@+id/btnSetupCompleteApplication"
+                        android:id="@+id/btnXXX"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="8dp"
                         android:layout_weight="1"
-                        android:text="complete setup" />
+                        android:text="xxx" />
 
                     <Button
-                        android:id="@+id/btnStandardFileWriteRead"
+                        android:id="@+id/btnXXX2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="8dp"
                         android:layout_weight="1"
-                        android:text="standard write/read" />
+                        android:text="xxx2" />
 
                 </LinearLayout>
 
@@ -306,7 +306,7 @@
                         android:ellipsize="end"
                         android:focusable="false"
                         android:maxLines="1"
-                        android:text="5"
+                        android:text="4"
                         tools:ignore="KeyboardInaccessibleWidget" />
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -362,37 +362,6 @@
 
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnAuthD2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginRight="8dp"
-                        android:layout_weight="1"
-                        android:text="auth D2" />
-
-                    <Button
-                        android:id="@+id/btnAuthD3"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="8dp"
-                        android:layout_weight="1"
-                        android:text="auth D3" />
-
-                    <Button
-                        android:id="@+id/btnAuthD4"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="8dp"
-                        android:layout_weight="1"
-                        android:text="auth D4" />
-
-                </LinearLayout>
-
             </LinearLayout>
 
             <LinearLayout
@@ -442,37 +411,6 @@
                         android:layout_marginLeft="8dp"
                         android:layout_weight="1"
                         android:text="change D3" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnChangeKeyD4"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginRight="8dp"
-                        android:layout_weight="1"
-                        android:text="change D4" />
-
-                    <Button
-                        android:id="@+id/btnChangeKeyD2x"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="8dp"
-                        android:layout_weight="1"
-                        android:text="x" />
-
-                    <Button
-                        android:id="@+id/btnChangeKeyD3x"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginLeft="8dp"
-                        android:layout_weight="1"
-                        android:text="xx" />
 
                 </LinearLayout>
 
