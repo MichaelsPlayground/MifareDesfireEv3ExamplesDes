@@ -72,6 +72,15 @@ public class CommunicationAdapter {
         }
     }
 
+    public byte[] sendReceiveChain(byte[] apdu) {
+        byte[] response = sendRequestChain(apdu);
+        if (response == null) {
+            return null;
+        } else {
+            return receiveResponseChain(response);
+        }
+    }
+
     public byte[] sendRequestChain(byte[] apdu)  {
         /**
          * Note: this method is taken from https://github.com/skjolber/desfire-tools-for-android/blob/master/libfreefare/src/main/java/nfcjlib/core/DESFireAdapter.java

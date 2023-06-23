@@ -74,6 +74,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private int selectedFileKeyRW, selectedFileKeyCar, selectedFileKeyR, selectedFileKeyW; // todo work on this
 
+    /**
+     * section for value file handling
+     */
+
+    private LinearLayout llValueFile;
+    private Button fileValueCreate, fileValueCredit, fileValueDebit, fileValueRead;
+    private com.shawnlin.numberpicker.NumberPicker npValueFileId;
+    private com.google.android.material.textfield.TextInputEditText lowerLimitValue, upperLimitValue, initialValueValue, creditDebitValue;
+
 
     /**
      * section for authentication
@@ -204,6 +213,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         fileSize = findViewById(R.id.etFileSize);
         fileData = findViewById(R.id.etFileData);
+
+        // value file handling
+        llValueFile = findViewById(R.id.llValueFile);
+        fileValueCreate = findViewById(R.id.btnCreateValueFile);
+        fileValueRead = findViewById(R.id.btnReadValueFile);
+        fileValueCredit = findViewById(R.id.btnCreditValueFile);
+        fileValueDebit = findViewById(R.id.btnDebitValueFile);
+        npValueFileId = findViewById(R.id.npValueFileId);
+        lowerLimitValue = findViewById(R.id.etValueLowerLimit);
+        upperLimitValue = findViewById(R.id.etValueUpperLimit);
+        initialValueValue = findViewById(R.id.etValueInitialValue);
+        creditDebitValue = findViewById(R.id.etValueCreditDebitValue);
 
         // authentication handling
         authKeyD0 = findViewById(R.id.btnAuthD0);
@@ -352,157 +373,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 dialog.show();
             }
         });
-
-        /**
-         * section for authentication
-         */
-
-        authKeyD0.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
-                clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
-                byte[] responseData = new byte[2];
-                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
-                boolean result = authenticateApplicationDes(output, DES_KEY_D0_NUMBER, DES_KEY_D0_DEFAULT, true, responseData);
-                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
-                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D0_NUMBER;
-                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
-                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
-                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
-                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-            }
-        });
-
-        authKeyD1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // authorization of keyNumber 1 (CAR) with DEFAULT KEY
-                clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
-                byte[] responseData = new byte[2];
-                byte keyId = (byte) 0x01; // we authenticate with keyId 1
-                boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
-                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
-                KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
-                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
-                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
-                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
-                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-            }
-        });
-
-        authKeyD3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // authorization of keyNumber 3 (R) with DEFAULT KEY
-                clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
-                byte[] responseData = new byte[2];
-                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
-                boolean result = authenticateApplicationDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, true, responseData);
-                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
-                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D3_NUMBER;
-                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
-                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
-                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
-                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-            }
-        });
-
-        authKeyD4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // authorization of keyNumber 4 (W) with DEFAULT KEY
-                clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
-                byte[] responseData = new byte[2];
-                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
-                boolean result = authenticateApplicationDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, true, responseData);
-                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
-                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D4_NUMBER;
-                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
-                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
-                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
-                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-            }
-        });
-
-
-        /**
-         * section for key handling
-         */
-
-        changeKeyD2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // this method will change the key number 2 (read access) from default to D200...
-                clearOutputFields();
-                byte[] responseData = new byte[2];
-                byte KEY_NUMBER_TO_CHANGE = 2;
-
-                boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_DEFAULT_KEY, DES_KEY_D2, responseData);
-                writeToUiAppend(output, "result of changeKeyDes: " + result);
-                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
-            }
-        });
-
-        changeKeyD3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // this method will change the key number 3 (read access) from default to D300...
-                clearOutputFields();
-                byte[] responseData = new byte[2];
-                writeToUiAppend(output, "changeKeyDes: "
-                        + Utils.byteToHex(DES_KEY_D3_NUMBER)
-                        + " from " + printData("oldValue", DES_KEY_D3_DEFAULT)
-                        + " to " + printData("newValue", DES_KEY_D3));
-                boolean result = changeKeyDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, DES_KEY_D3, responseData);
-
-                writeToUiAppend(output, "result of changeKeyDes: " + result);
-                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
-            }
-        });
-
-        changeKeyD4.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // this method will change the key number 4 (write access) from default to D400...
-                clearOutputFields();
-                byte[] responseData = new byte[2];
-                writeToUiAppend(output, "changeKeyDes: "
-                        + Utils.byteToHex(DES_KEY_D4_NUMBER)
-                        + " from " + printData("oldValue", DES_KEY_D4_DEFAULT)
-                        + " to " + printData("newValue", DES_KEY_D4));
-                boolean result = changeKeyDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, DES_KEY_D4, responseData);
-
-                writeToUiAppend(output, "result of changeKeyDes: " + result);
-                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
-            }
-        });
-
 
         /**
          * section  for standard files
@@ -719,6 +589,254 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        /**
+         * section for value files
+         */
+
+        fileValueCreate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // create a new value file
+                // get the input and sanity checks
+                clearOutputFields();
+
+                // the number of files on an EV1 tag is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 15 files (00..14)
+                // this limit is hardcoded in the XML file for the fileId numberPicker
+
+                // this uses the numberPicker
+                byte fileIdByte = (byte) (npFileId.getValue() & 0xFF);
+                // this is done with an EditText
+                //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
+                int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
+                if (fileIdByte > (byte) 0x0f) {
+                    //writeToUiAppend(errorCode, "you entered a wrong file ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
+                    return;
+                }
+
+                int lowerLimitInt = Integer.parseInt(lowerLimitValue.getText().toString());
+                int upperLimitInt = Integer.parseInt(upperLimitValue.getText().toString());
+                int initialValueInt = Integer.parseInt(initialValueValue.getText().toString());
+
+                PayloadBuilder pb = new PayloadBuilder();
+
+                if ((lowerLimitInt < pb.getMINIMUM_VALUE_LOWER_LIMIT()) || (lowerLimitInt > pb.getMAXIMUM_VALUE_LOWER_LIMIT())) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong lower limit, maximum 1000 allowed only", COLOR_RED);
+                    return;
+                }
+                if ((upperLimitInt < pb.getMINIMUM_VALUE_UPPER_LIMIT()) || (upperLimitInt > pb.getMAXIMUM_VALUE_UPPER_LIMIT())) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong upper limit, maximum 1000 allowed only", COLOR_RED);
+                    return;
+                }
+                if (upperLimitInt <= lowerLimitInt) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong upper limit, should be higher than lower limit", COLOR_RED);
+                    return;
+                }
+                if ((initialValueInt < pb.getMINIMUM_VALUE_LOWER_LIMIT()) || (initialValueInt > pb.getMAXIMUM_VALUE_UPPER_LIMIT())) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong initial value, should be between lower and higher limit", COLOR_RED);
+                    return;
+                }
+
+                try {
+                    byte[] createValueFileParameters = pb.createValueFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
+                            1, 2, 3, 4, lowerLimitInt, upperLimitInt, initialValueInt, false);
+
+                    writeToUiAppend(output, printData("createValueFileParameters", createValueFileParameters));
+                    byte createValueFileCommand = (byte) 0xcc;
+                    byte[] apdu = wrapMessage(createValueFileCommand, createValueFileParameters);
+                    byte[] response = adapter.sendReceiveChain(apdu);
+
+                    if (checkDuplicateError(response)) {
+                        writeToUiAppend(output, "the file was not created as it already exists, proceed");
+                        return;
+                    }
+                    int colorFromErrorCode = Ev3.getColorFromErrorCode(response);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAValueFile: " + Ev3.getErrorCode(response), colorFromErrorCode);
+                    writeToUiAppend(output, "createValueFile " + " with FileID: " + Utils.byteToHex(fileIdByte)
+                            + " lower limit: " + lowerLimitInt + " upper limit: " + upperLimitInt + " initial limit: " + initialValueInt);
+                    writeToUiAppend(output, "createValueFile " + checkResponse(response));
+                } catch (IOException e) {
+                    //throw new RuntimeException(e);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "IOException: " + e.getMessage(), COLOR_RED);
+                    e.printStackTrace();
+                    return;
+                } catch (Exception e) {
+                    //throw new RuntimeException(e);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
+                    writeToUiAppend(errorCode, "Stack: " + Arrays.toString(e.getStackTrace()));
+                    e.printStackTrace();
+                    return;
+                }
+
+
+                if (fileSizeInt != 32) {
+                    //writeToUiAppend(errorCode, "you entered a wrong file size, 32 bytes allowed only");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
+                    return;
+                }
+                byte[] responseData = new byte[2];
+                boolean result = createStandardFile(output, fileIdByte, fileSizeInt, responseData);
+                writeToUiAppend(output, "result of createAStandardFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt);
+                //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        /**
+         * section for authentication
+         */
+
+        authKeyD0.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
+                boolean result = authenticateApplicationDes(output, DES_KEY_D0_NUMBER, DES_KEY_D0_DEFAULT, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D0_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 1 (CAR) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 3 (R) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D3_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 4 (W) with DEFAULT KEY
+                clearOutputFields();
+                SESSION_KEY_DES = new byte[8];
+                SESSION_KEY_TDES = new byte[16];
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 1
+                boolean result = authenticateApplicationDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D4_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+
+        /**
+         * section for key handling
+         */
+
+        changeKeyD2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 2 (read access) from default to D200...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                byte KEY_NUMBER_TO_CHANGE = 2;
+
+                boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_DEFAULT_KEY, DES_KEY_D2, responseData);
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        changeKeyD3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 3 (read access) from default to D300...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                writeToUiAppend(output, "changeKeyDes: "
+                        + Utils.byteToHex(DES_KEY_D3_NUMBER)
+                        + " from " + printData("oldValue", DES_KEY_D3_DEFAULT)
+                        + " to " + printData("newValue", DES_KEY_D3));
+                boolean result = changeKeyDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, DES_KEY_D3, responseData);
+
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+        changeKeyD4.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // this method will change the key number 4 (write access) from default to D400...
+                clearOutputFields();
+                byte[] responseData = new byte[2];
+                writeToUiAppend(output, "changeKeyDes: "
+                        + Utils.byteToHex(DES_KEY_D4_NUMBER)
+                        + " from " + printData("oldValue", DES_KEY_D4_DEFAULT)
+                        + " to " + printData("newValue", DES_KEY_D4));
+                boolean result = changeKeyDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, DES_KEY_D4, responseData);
+
+                writeToUiAppend(output, "result of changeKeyDes: " + result);
+                //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+
+
+
     }
 
     /**
@@ -726,41 +844,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     public VersionInfo getVersionInfo(TextView logTextView) throws Exception {
-        byte[] bytes = sendRequest(logTextView, GET_VERSION_INFO);
-        return new VersionInfo(bytes);
-    }
-
-    private byte[] sendRequest(TextView logTextView, byte command) throws Exception {
-        return sendRequest(logTextView, command, null);
-    }
-
-    // todo take this as MASTER for sending commands to the card and receiving data
-    private byte[] sendRequest(TextView logTextView, byte command, byte[] parameters) throws Exception {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-        byte[] recvBuffer = isoDep.transceive(wrapMessage(command, parameters));
-        writeToUiAppend(logTextView, printData("sendRequest recvBuffer", recvBuffer));
-        while (true) {
-            if (recvBuffer[recvBuffer.length - 2] != (byte) 0x91) {
-                throw new Exception("Invalid response");
-            }
-
-            output.write(recvBuffer, 0, recvBuffer.length - 2);
-
-            byte status = recvBuffer[recvBuffer.length - 1];
-            if (status == OPERATION_OK) {
-                break;
-            } else if (status == ADDITIONAL_FRAME) {
-                recvBuffer = isoDep.transceive(wrapMessage(GET_ADDITIONAL_FRAME, null));
-            } else if (status == PERMISSION_DENIED) {
-                throw new AccessControlException("Permission denied");
-            } else if (status == AUTHENTICATION_ERROR) {
-                throw new AccessControlException("Authentication error");
-            } else {
-                throw new Exception("Unknown status code: " + Integer.toHexString(status & 0xFF));
-            }
-        }
-        return output.toByteArray();
+        byte[] apdu = wrapMessage(GET_VERSION_INFO, null);
+        return new VersionInfo(adapter.receiveResponseChain(adapter.sendRequestChain(apdu)));
+        //byte[] bytes = sendRequest(logTextView, GET_VERSION_INFO);
+        //return new VersionInfo(bytes);
     }
 
     /**
@@ -997,19 +1084,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             System.arraycopy(responseManual, 0, response, 0, 2);
             return false;
         }
-        /*
-        try {
-            writeStandardFileResponse = isoDep.transceive(wrapMessage(writeStandardFileCommand, writeStandardFileParameters));
-            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(writeStandardFileCommand, writeStandardFileParameters)));
-        } catch (Exception e) {
-            //throw new RuntimeException(e);
-            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
-            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
-            System.arraycopy(responseManual, 0, response, 0, 2);
-            return false;
-        }
-
-         */
         writeToUiAppend(logTextView, printData("writeStandardFileResponse", writeStandardFileResponse));
         System.arraycopy(returnStatusBytes(writeStandardFileResponse), 0, response, 0, 2);
         if (checkResponse(writeStandardFileResponse)) {
