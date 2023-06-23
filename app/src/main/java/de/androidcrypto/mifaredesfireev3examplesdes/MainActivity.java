@@ -1079,8 +1079,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         byte[] readStandardFileResponse = new byte[0];
         try {
             byte[] apdu = wrapMessage(readStandardFileCommand, readStandardFileParameters);
-            readStandardFileResponse = adapter.send(apdu);
-            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(readStandardFileCommand, readStandardFileParameters)));
+            writeToUiAppend(logTextView, printData("send APDU", apdu));
+
+            //readStandardFileResponse = adapter.send(apdu);
+            byte[] readStandardFileResponse1st = adapter.sendRequestChain(apdu);
+            writeToUiAppend(logTextView, printData("readStandardFileResponse1st", readStandardFileResponse1st));
+            if (readStandardFileResponse1st == null) {
+                writeToUiAppend(logTextView, "the readStandardFile command failed, aborted");
+                byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+                System.arraycopy(responseManual, 0, response, 0, 2);
+                return null;
+            }
+            readStandardFileResponse = adapter.receiveResponseChain(readStandardFileResponse1st);
+            writeToUiAppend(logTextView, printData("readStandardFileResponse2nd", readStandardFileResponse));
+
         } catch (Exception e) {
             //throw new RuntimeException(e);
             writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());

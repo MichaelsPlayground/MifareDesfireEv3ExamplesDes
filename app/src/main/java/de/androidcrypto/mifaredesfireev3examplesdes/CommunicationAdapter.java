@@ -72,12 +72,12 @@ public class CommunicationAdapter {
         }
     }
 
-    public byte[] sendRequestChain(byte[] apdu) throws Exception {
+    public byte[] sendRequestChain(byte[] apdu)  {
         /**
          * Note: this method is taken from https://github.com/skjolber/desfire-tools-for-android/blob/master/libfreefare/src/main/java/nfcjlib/core/DESFireAdapter.java
          * and error corrected
          */
-
+        try {
         if (apdu.length <= MAX_CAPDU_SIZE) {
             return transceive(apdu);
         }
@@ -108,7 +108,11 @@ public class CommunicationAdapter {
             byte[] response = transceive(request);
             if (debug) Log.d(TAG, "sendRequestChain " + Utils.printData("response", response));
             if (response[response.length - 2] != STATUS_OK) {
-                throw new Exception("Invalid response " + String.format("%02x", response[response.length - 2] & 0xff));
+                Log.e(TAG, "status not OK: " + response[response.length - 2]);
+                statusCode = response[response.length - 2];
+                statusCodeName = UNKNOWN_STATUS_NAME;
+                return null;
+                //throw new Exception("Invalid response " + String.format("%02x", response[response.length - 2] & 0xff));
             }
 
             offset += nextLength;
@@ -122,10 +126,75 @@ public class CommunicationAdapter {
             }
             byte status = response[response.length - 1];
             if (status != ADDITIONAL_FRAME) {
-                throw new Exception("PICC error code: " + Integer.toHexString(status & 0xFF));
+                Log.e(TAG, "error code not OK: " + response[response.length - 1]);
+                statusCode = STATUS_OK;
+                statusCodeName = "OK";
+                errorCode = response[response.length - 1];
+                errorCodeName = Ev3.getErrorCode(errorCode);
+                return null;
+                //throw new Exception("PICC error code: " + Integer.toHexString(status & 0xFF));
             }
             nextCommand = ADDITIONAL_FRAME;
             if (debug) Log.d(TAG, "sendRequestChain nextCommand: " + Utils.byteToHex(nextCommand));
+        }
+        } catch (IOException e) {
+            Log.e(TAG, "sendRequestChain IOException " + e.getMessage());
+            statusCode = (byte) 0xF0;
+            statusCodeName = "IOException";
+            return null;
+        }
+    }
+
+    public byte[] receiveResponseChain(byte[] response) {
+        /**
+         * Note: this method is taken from https://github.com/skjolber/desfire-tools-for-android/blob/master/libfreefare/src/main/java/nfcjlib/core/DESFireAdapter.java
+         */
+        if (debug) Log.d(TAG, Utils.printData("response", response));
+
+        if (response[response.length - 2] == STATUS_OK && response[response.length - 1] == OPERATION_OK) {
+            statusCode = response[response.length - 2];
+            statusCodeName = "OK";
+            errorCode = response[response.length - 1];
+            errorCodeName = Ev3.getErrorCode(errorCode);
+            return response;
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+        do {
+            if (response[response.length - 2] != STATUS_OK) {
+                statusCode = response[response.length - 2];
+                statusCodeName = "invalid response";
+                errorCode = -1;
+                errorCodeName = "n.a.";
+                //throw new Exception("Invalid response " + String.format("%02x", response[response.length - 2] & 0xff));
+                return null;
+            }
+
+            output.write(response, 0, response.length - 2);
+
+            byte status = response[response.length - 1];
+            if (status == OPERATION_OK) {
+                // todo error correction: add the status for following processes as they may need the status
+                output.write(response, response.length - 2, 2); // added
+
+                return output.toByteArray();
+            } else if (status != ADDITIONAL_FRAME) {
+                statusCode = STATUS_OK;
+                statusCodeName = "OK";
+                errorCode = status;
+                errorCodeName = Ev3.getErrorCode(errorCode);
+                return null;
+                //throw new Exception("PICC error code while reading response: " + Integer.toHexString(status & 0xFF));
+            }
+
+            response = transceive(wrapMessage(ADDITIONAL_FRAME));
+        } while (true);
+        } catch (IOException e) {
+            Log.e(TAG, "receiveRequestChain IOException " + e.getMessage());
+            statusCode = (byte) 0xF0;
+            statusCodeName = "IOException";
+            return null;
         }
     }
 
@@ -230,6 +299,11 @@ public class CommunicationAdapter {
         statusCodeName = "";
         errorCodeName = "";
     }
+
+    public static byte[] wrapMessage(byte command) {
+        return new byte[]{(byte) 0x90, command, 0x00, 0x00, 0x00};
+    }
+
     private byte[] wrapMessage(byte command, byte[] parameters) throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         stream.write((byte) 0x90);
