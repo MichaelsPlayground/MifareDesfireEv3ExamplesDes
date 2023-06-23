@@ -18,6 +18,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -58,6 +59,23 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private byte[] selectedApplicationId = null;
 
     /**
+     * section for standard file handling
+     */
+
+    private LinearLayout llStandardFile;
+    private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead;
+    private com.shawnlin.numberpicker.NumberPicker npFileId;
+
+    private com.google.android.material.textfield.TextInputEditText fileSelected;
+    private com.google.android.material.textfield.TextInputEditText fileSize, fileData;
+    private String selectedFileId = "";
+    private int selectedFileSize;
+    private FileSettings selectedFileSettings;
+
+    private int selectedFileKeyRW, selectedFileKeyCar, selectedFileKeyR, selectedFileKeyW; // todo work on this
+
+
+    /**
      * section for authentication
      */
 
@@ -68,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     private Button changeKeyD2, changeKeyD3, changeKeyD4;
+
 
     private byte KEY_NUMBER_USED_FOR_AUTHENTICATION; // the key number used for a successful authentication
     private byte[] SESSION_KEY_DES; // filled in authenticate, simply the first (leftmost) 8 bytes of SESSION_KEY_TDES
@@ -81,33 +100,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private final byte[] DES_KEY_D2_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 2 is for change access keys
     private final byte[] DES_KEY_D3_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 3 is for read access
     private final byte[] DES_KEY_D4_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 4 is for write access
-    private final byte[] DES_KEY_D0 = Utils.hexStringToByteArray("D000000000000000"); // key number 0 is the application master key
-    private final byte[] DES_KEY_D1 = Utils.hexStringToByteArray("D100000000000000"); // key number 1 is for read&write access keys
-    private final byte[] DES_KEY_D2 = Utils.hexStringToByteArray("D200000000000000"); // key number 2 is for change access keys
-    private final byte[] DES_KEY_D3 = Utils.hexStringToByteArray("D300000000000000"); // key number 3 is for read access
-    private final byte[] DES_KEY_D4 = Utils.hexStringToByteArray("D400000000000000"); // key number 4 is for write access
+    private final byte[] DES_KEY_D0 = Utils.hexStringToByteArray("E000000000000000"); // key number 0 is the application master key
+    private final byte[] DES_KEY_D1 = Utils.hexStringToByteArray("E100000000000000"); // key number 1 is for read&write access keys
+    private final byte[] DES_KEY_D2 = Utils.hexStringToByteArray("E200000000000000"); // key number 2 is for change access keys
+    private final byte[] DES_KEY_D3 = Utils.hexStringToByteArray("E300000000000000"); // key number 3 is for read access
+    private final byte[] DES_KEY_D4 = Utils.hexStringToByteArray("E400000000000000"); // key number 4 is for write access
     private final byte DES_KEY_D0_NUMBER = (byte) 0x00;
     private final byte DES_KEY_D1_NUMBER = (byte) 0x01;
     private final byte DES_KEY_D2_NUMBER = (byte) 0x02;
     private final byte DES_KEY_D3_NUMBER = (byte) 0x03;
     private final byte DES_KEY_D4_NUMBER = (byte) 0x04;
 
-    /**
-     * section for standard file handling
-     */
 
-    private LinearLayout llStandardFile;
-    private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead, authenticate;
-    private com.shawnlin.numberpicker.NumberPicker npFileId;
-
-
-    private com.google.android.material.textfield.TextInputEditText fileSelected;
-    private com.google.android.material.textfield.TextInputEditText fileId, fileSize, fileData;
-    private String selectedFileId = "";
-    private int selectedFileSize;
-    private FileSettings selectedFileSettings;
-
-    private int selectedFileKeyRW, selectedFileKeyCar, selectedFileKeyR, selectedFileKeyW; // todo work on this
 
     // old routines
     private Button fileStandardCreateOld;
@@ -117,7 +121,33 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private static final byte GET_ADDITIONAL_FRAME = (byte) 0xAF;
 
 
+    private final byte[] MASTER_APPLICATION_IDENTIFIER = new byte[3]; // '00 00 00'
+    private final byte[] MASTER_APPLICATION_KEY_DEFAULT = Utils.hexStringToByteArray("0000000000000000");
+    private final byte[] MASTER_APPLICATION_KEY = Utils.hexStringToByteArray("EE00000000000000");
+    private final byte MASTER_APPLICATION_KEY_NUMBER = (byte) 0x00;
+    private final byte[] APPLICATION_ID_DES = Utils.hexStringToByteArray("B1B2B3");
+    private final byte[] APPLICATION_KEY_MASTER_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // default DES key with 8 nulls
+    private final byte[] APPLICATION_KEY_MASTER = Utils.hexStringToByteArray("E000000000000000");
+    private final byte APPLICATION_KEY_MASTER_NUMBER = (byte) 0x00;
+    private final byte APPLICATION_MASTER_KEY_SETTINGS = (byte) 0x0f; // amks
+    private final byte KEY_NUMBER_RW = (byte) 0x01;
+    private final byte[] APPLICATION_KEY_RW_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // default DES key with 8 nulls
+    private final byte[] APPLICATION_KEY_RW = Utils.hexStringToByteArray("E100000000000000");
+    private final byte APPLICATION_KEY_RW_NUMBER = (byte) 0x01;
+    private final byte[] APPLICATION_KEY_CAR_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // default DES key with 8 nulls
+    private final byte[] APPLICATION_KEY_CAR = Utils.hexStringToByteArray("E200000000000000");
+    private final byte APPLICATION_KEY_CAR_NUMBER = (byte) 0x02;
 
+    private final byte[] APPLICATION_KEY_R_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // default DES key with 8 nulls
+    private final byte[] APPLICATION_KEY_R = Utils.hexStringToByteArray("E300000000000000");
+    private final byte APPLICATION_KEY_R_NUMBER = (byte) 0x03;
+
+    private final byte[] APPLICATION_KEY_W_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // default DES key with 8 nulls
+    //private final byte[] APPLICATION_KEY_W = Utils.hexStringToByteArray("B400000000000000");
+    private final byte[] APPLICATION_KEY_W = Utils.hexStringToByteArray("E400000000000000");
+    private final byte APPLICATION_KEY_W_NUMBER = (byte) 0x04;
+
+    private final byte STANDARD_FILE_NUMBER = (byte) 0x01;
 
 
     // Status codes (Section 3.4)
@@ -132,6 +162,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // variables for NFC handling
 
     private NfcAdapter mNfcAdapter;
+    private CommunicationAdapter adapter;
     private IsoDep isoDep;
     private byte[] tagIdByte;
 
@@ -160,6 +191,20 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         numberOfKeys = findViewById(R.id.etNumberOfKeys);
         applicationId = findViewById(R.id.etApplicationId);
 
+        // standard file handling
+        llStandardFile = findViewById(R.id.llStandardFile);
+        fileList = findViewById(R.id.btnListFiles);
+        fileSelect = findViewById(R.id.btnSelectFile);
+
+        fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
+        fileStandardWrite = findViewById(R.id.btnWriteStandardFile);
+        fileStandardRead = findViewById(R.id.btnReadStandardFile);
+        npFileId = findViewById(R.id.npStandardFileId);
+        fileSelected = findViewById(R.id.etSelectedFileId);
+
+        fileSize = findViewById(R.id.etFileSize);
+        fileData = findViewById(R.id.etFileData);
+
         // authentication handling
         authKeyD0 = findViewById(R.id.btnAuthD0);
         authKeyD1 = findViewById(R.id.btnAuthD1);
@@ -171,24 +216,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         changeKeyD3 = findViewById(R.id.btnChangeKeyD3);
         changeKeyD4 = findViewById(R.id.btnChangeKeyD4);
 
-        // standard file handling
-        llStandardFile = findViewById(R.id.llStandardFile);
-        fileList = findViewById(R.id.btnListFiles);
-        fileSelect = findViewById(R.id.btnSelectFile);
-        authenticate = findViewById(R.id.btnAuthenticate);
-        fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
-        fileStandardWrite = findViewById(R.id.btnWriteStandardFile);
-        fileStandardRead = findViewById(R.id.btnReadStandardFile);
-        npFileId = findViewById(R.id.npFileId);
-        fileSelected = findViewById(R.id.etSelectedFileId);
 
-        fileId = findViewById(R.id.etFileId);
-        fileSize = findViewById(R.id.etFileSize);
-        fileData = findViewById(R.id.etFileData);
-        // old ones
-        fileStandardCreateOld = findViewById(R.id.btnCreateStandardFileOld);
+        // hide soft keyboard from showing up on startup
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 
-        allLayoutsInvisible(); // default
+        //allLayoutsInvisible(); // default
+        applicationId.setText(Utils.bytesToHexNpe(APPLICATION_ID_DES).toUpperCase());
 
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
@@ -475,6 +508,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
          * section  for standard files
          */
 
+        /*
         authenticate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -495,6 +529,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
+
+         */
 
         fileList.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -634,16 +670,26 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     return;
                 }
                 String dataToWrite = fileData.getText().toString();
+                byte[] dataToWriteBytes = dataToWrite.getBytes(StandardCharsets.UTF_8);
+                // here we are using testdata
+                int fileSize = selectedFileSize;
+                writeToUiAppend(output, "As the selected file has a size of " + fileSize + " we generate the same length as test data");
+                dataToWriteBytes = Utils.generateTestData(fileSize);
+
                 if (TextUtils.isEmpty(dataToWrite)) {
                     //writeToUiAppend(errorCode, "please enter some data to write");
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "please enter some data to write", COLOR_RED);
                     return;
                 }
+                writeToUiAppend(output, printData("testdata", dataToWriteBytes));
+
                 byte fileIdByte = Byte.parseByte(selectedFileId);
 
                 byte[] responseData = new byte[2];
-                boolean result = writeToStandardFile(output, fileIdByte, dataToWrite.getBytes(StandardCharsets.UTF_8), responseData);
-                writeToUiAppend(output, "result of writeToStandardFile: " + result + " ID: " + fileIdByte + " data: " + dataToWrite);
+                //boolean result = writeToStandardFile(output, fileIdByte, dataToWrite.getBytes(StandardCharsets.UTF_8), responseData);
+                boolean result = writeToStandardFile(output, fileIdByte, dataToWriteBytes, responseData);
+                //writeToUiAppend(output, "result of writeToStandardFile: " + result + " ID: " + fileIdByte + " data: " + dataToWrite);
+                writeToUiAppend(output, "result of writeToStandardFile: " + result + " to fileID: " + fileIdByte);
                 //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "writeToStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
@@ -664,22 +710,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte fileIdByte = Byte.parseByte(selectedFileId);
                 byte[] responseData = new byte[2];
                 byte[] result = readFromStandardFile(output, fileIdByte, responseData);
+                //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
+                writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + printData(" data", result));
                 writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + " data: " +  new String(result, StandardCharsets.UTF_8));
                 //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
-            }
-        });
-
-        fileStandardCreateOld.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // this is the old method from Playground
-
-                // select application and create a standard file
-
-
             }
         });
 
@@ -928,6 +964,63 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // note: we don't need to commit any write on Standard Files
     private boolean writeToStandardFile(TextView logTextView, byte fileNumber, byte[] data, byte[] response) {
         // some sanity checks to avoid any issues
+        int fileSize = selectedFileSettings.getFileSizeInt();
+        if (fileNumber < (byte) 0x00) return false;
+        if (fileNumber > (byte) 0x0F) return false;
+        if (data == null) return false;
+        if (data.length == 0) return false;
+        if (data.length > fileSize) return false;
+
+        // write to file
+        byte writeStandardFileCommand = (byte) 0x3d;
+        int numberOfBytes = data.length;
+        int offsetBytes = 0;
+        //byte[] offset = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00}; // no offset
+        byte[] length = Utils.intTo3ByteArrayInversed(numberOfBytes);
+        byte[] offset = Utils.intTo3ByteArrayInversed(offsetBytes);
+        //byte[] length = new byte[]{(byte) (numberOfBytes & 0xFF), (byte) 0xf00, (byte) 0x00}; // 32 bytes
+        byte[] writeStandardFileParameters = new byte[(7 + data.length)]; // if encrypted we need to append the CRC
+        writeStandardFileParameters[0] = fileNumber;
+        System.arraycopy(offset, 0, writeStandardFileParameters, 1, 3); // offset
+        System.arraycopy(length, 0, writeStandardFileParameters, 4, 3); // length of data
+        System.arraycopy(data, 0, writeStandardFileParameters, 7, data.length); // the data
+
+        writeToUiAppend(logTextView, printData("writeStandardFileParameters", writeStandardFileParameters));
+        byte[] writeStandardFileResponse = new byte[0];
+        try {
+            byte[] apdu = wrapMessage(writeStandardFileCommand, writeStandardFileParameters);
+            writeStandardFileResponse = adapter.sendRequestChain(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        /*
+        try {
+            writeStandardFileResponse = isoDep.transceive(wrapMessage(writeStandardFileCommand, writeStandardFileParameters));
+            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(writeStandardFileCommand, writeStandardFileParameters)));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+
+         */
+        writeToUiAppend(logTextView, printData("writeStandardFileResponse", writeStandardFileResponse));
+        System.arraycopy(returnStatusBytes(writeStandardFileResponse), 0, response, 0, 2);
+        if (checkResponse(writeStandardFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean writeToStandardFileLimitedSize(TextView logTextView, byte fileNumber, byte[] data, byte[] response) {
+        // some sanity checks to avoid any issues
         if (fileNumber < (byte) 0x00) return false;
         if (fileNumber > (byte) 0x0F) return false;
         if (data == null) return false;
@@ -968,6 +1061,72 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     private byte[] readFromStandardFile(TextView logTextView, byte fileNumber, byte[] response) {
+        // we read from a standard file within the selected application
+        // as the file length is fixed we are reading with a constant length of 32
+
+        int numberOfBytes = selectedFileSettings.getFileSizeInt();
+        int offsetBytes = 0; // read from the beginning
+        //int numberOfBytes = 32;
+        byte readStandardFileCommand = (byte) 0xbd;
+        //byte[] offset = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00}; // no offset, read from the beginning
+        byte[] offset = Utils.intTo3ByteArrayInversed(offsetBytes);
+        byte[] length = Utils.intTo3ByteArrayInversed(numberOfBytes);
+        byte[] readStandardFileParameters = new byte[7];
+        readStandardFileParameters[0] = fileNumber;
+        System.arraycopy(offset, 0, readStandardFileParameters, 1, 3);
+        System.arraycopy(length, 0, readStandardFileParameters, 4, 3);
+        writeToUiAppend(logTextView, printData("readStandardFileParameters", readStandardFileParameters));
+        byte[] readStandardFileResponse = new byte[0];
+        try {
+            byte[] apdu = wrapMessage(readStandardFileCommand, readStandardFileParameters);
+            readStandardFileResponse = adapter.send(apdu);
+            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(readStandardFileCommand, readStandardFileParameters)));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return null;
+        }
+        /*
+        try {
+            readStandardFileResponse = isoDep.transceive(wrapMessage(readStandardFileCommand, readStandardFileParameters));
+            writeToUiAppend(logTextView, printData("send APDU", wrapMessage(readStandardFileCommand, readStandardFileParameters)));
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return null;
+        }
+
+         */
+        writeToUiAppend(logTextView, printData("readStandardFileResponse", readStandardFileResponse));
+        //System.arraycopy(returnStatusBytes(readStandardFileResponse), 0, response, 0, 2);
+        //return Arrays.copyOf(readStandardFileResponse, readStandardFileResponse.length - 2);
+        System.arraycopy(adapter.getFullCode(), 0, response, 0, 2);
+
+        // if the card responses more data than expected we truncate the data
+        int expectedResponse = numberOfBytes - offsetBytes;
+        if (readStandardFileResponse.length == expectedResponse) {
+            return readStandardFileResponse;
+        } else if (readStandardFileResponse.length > expectedResponse){
+            // more data is provided - truncated
+            return Arrays.copyOf(readStandardFileResponse, expectedResponse);
+        } else {
+            // less data is provided - we return as much as possible
+            return readStandardFileResponse;
+        }
+
+        //return readStandardFileResponse;
+        // apdu length: 13 data: 90bd0000070000000020000000
+        // response length: 42 data: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fae2873a3bf1ef7809100
+
+        // APDU length: 13 data: 90bd0000070000000020000000
+        // Response length: 42 data: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f3898f824d7f256f59100
+    }
+
+    private byte[] readFromStandardFileLimitedSize(TextView logTextView, byte fileNumber, byte[] response) {
         // we read from a standard file within the selected application
         // as the file length is fixed we are reading with a constant length of 32
         int numberOfBytes = 32;
@@ -1239,7 +1398,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if ((oldKey == null) | (newKey == null)) return false;
         if (oldKey.length != 8) return false;
         if (newKey.length != 8) return false;
-        if (SESSION_KEY_DES == null) return false;
+        if (SESSION_KEY_TDES == null) return false;
 
         System.out.println("ChangeKeyDes keyNumber: " + Utils.byteToHex(keyNumber) + " is authenticated with keyNr " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
         System.out.println(printData("oldKey", oldKey));
@@ -1247,6 +1406,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         // this method is using a fixed key version
         byte KEY_VERSION = 0;
+
+        setKeyVersion(oldKey, 0, oldKey.length, KEY_VERSION);
+
         byte[] plaintext = new byte[24]; // this is the final array
         int nklen = 16;
         System.out.println(printData("newKey before setKeyVersion", newKey));
@@ -1279,7 +1441,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
         System.out.println(printData("plaintext before encryption", plaintext));
         byte[] ciphertext = null;
-        ciphertext = decrypt(SESSION_KEY_DES, plaintext);
+        System.out.println(printData("SESSION_KEY_DES", SESSION_KEY_TDES));
+        ciphertext = decrypt(SESSION_KEY_TDES, plaintext);
         System.out.println(printData("ciphertext after encryption", ciphertext));
 
         byte changeKeyCommand = (byte) 0xc4;
@@ -1501,6 +1664,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     @Override
     public void onTagDiscovered(Tag tag) {
 
+        clearOutputFields();
+        invalidateAllSelections();
         writeToUiAppend(output, "NFC tag discovered");
         isoDep = null;
         try {
@@ -1527,6 +1692,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     //output.setBackgroundColor(getResources().getColor(R.color.white));
                 });
                 isoDep.connect();
+                if (!isoDep.isConnected()) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "could not connect to the tag, aborted", COLOR_RED);
+                    isoDep.close();
+                    return;
+                }
+
+                // setup the communication adapter
+                adapter = new CommunicationAdapter(isoDep, true);
+
                 // get tag ID
                 tagIdByte = tag.getId();
                 writeToUiAppend(output, "tag id: " + Utils.bytesToHex(tagIdByte));
@@ -1536,12 +1710,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         } catch (IOException e) {
             writeToUiAppend(output, "ERROR: IOException " + e.getMessage());
+            writeToUiAppendBorderColor(errorCode, errorCodeLayout, "IOException: " + e.getMessage(), COLOR_RED);
             e.printStackTrace();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            writeToUiAppend(output, "ERROR: Exception " + e.getMessage());
+            writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
+            e.printStackTrace();
         }
 
     }
+
+
 
     @Override
     protected void onResume() {
@@ -1657,8 +1836,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     private void clearOutputFields() {
-        output.setText("");
-        errorCode.setText("");
+        runOnUiThread(() -> {
+                    output.setText("");
+                    errorCode.setText("");
+                });
         // reset the border color to primary for errorCode
         int color = R.color.colorPrimary;
         int[][] states = new int[][] {
@@ -1675,6 +1856,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         };
         ColorStateList myColorList = new ColorStateList(states, colors);
         errorCodeLayout.setBoxStrokeColorStateList(myColorList);
+    }
+
+    private void invalidateAllSelections() {
+        selectedApplicationId = null;
+        selectedFileId = "";
+        runOnUiThread(() -> {
+                    applicationSelected.setText("");
+                    fileSelected.setText("");
+                });
+        KEY_NUMBER_USED_FOR_AUTHENTICATION = -1;
     }
 
     /**

@@ -270,7 +270,6 @@ public class VersionInfo {
         sb.append("hardwareStorageSize: ").append(hardwareStorageSize).append("\n");
 
         sb.append("hardwareProtocol: ").append(hardwareProtocol).append("\n");
-        sb.append("hardwareSubtype: ").append(hardwareSubtype).append("\n");
         sb.append("softwareVendorId: ").append(softwareVendorId).append("\n");
         sb.append("softwareType: ").append(softwareType).append("\n");
         sb.append("softwareSubtype: ").append(softwareSubtype).append("\n");

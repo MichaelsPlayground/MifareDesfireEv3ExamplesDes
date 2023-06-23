@@ -18,6 +18,11 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Ev3 {
 
+    public static String getErrorCode(byte oneByteResponse) {
+        byte[] errorCode = new byte[]{(byte) 0x91, oneByteResponse};
+        return getErrorCode(errorCode);
+    }
+
     public static String getErrorCode(byte[] twoByteResponse) {
         if (twoByteResponse == null) {
             return "response is null";
@@ -35,7 +40,7 @@ public class Ev3 {
             case (byte) 0x0c: return "0C no change";
             case (byte) 0x0e: return "0E out of EPROM memory";
             case (byte) 0x1c: return "1C illegal command";
-            case (byte) 0x1e: return "1E integrity command";
+            case (byte) 0x1e: return "1E integrity error";
             case (byte) 0x40: return "40 No such key error";
             case (byte) 0x6e: return "6E Error (ISO?) error";
             case (byte) 0x7e: return "7E Length error";

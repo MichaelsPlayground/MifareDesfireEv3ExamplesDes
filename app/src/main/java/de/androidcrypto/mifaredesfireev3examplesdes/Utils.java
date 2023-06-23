@@ -6,6 +6,7 @@ import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Date;
 
 public class Utils {
@@ -38,6 +39,26 @@ public class Utils {
         int index = n >>> 3; // divide by 8
         int mask = 1 << (n & 7); // n modulo 8
         return (array[index] & mask) != 0;
+    }
+
+    public static String printData(String dataName, byte[] data) {
+        int dataLength;
+        String dataString = "";
+        if (data == null) {
+            dataLength = 0;
+            dataString = "IS NULL";
+        } else {
+            dataLength = data.length;
+            dataString = bytesToHex(data);
+        }
+        StringBuilder sb = new StringBuilder();
+        sb
+                .append(dataName)
+                .append(" length: ")
+                .append(dataLength)
+                .append(" data: ")
+                .append(dataString);
+        return sb.toString();
     }
 
     public static String bytesToHex(byte[] bytes) {
@@ -182,5 +203,35 @@ public class Utils {
             return new SimpleDateFormat("yyyy.MM.dd HH:mm:ss").format(new Date());
         }
     }
+    public static byte[] generateTestData(int length) {
+        /**
+         * this method will generate a byte array of size 'length' and will hold a byte sequence
+         * 00 01 .. FE FF 00 01 ..
+         */
+        // first generate a basis array
+        byte[] basis = new byte[256];
+        for (int i = 0; i < 256; i++) {
+            basis[i] = (byte) (i & 0xFF);
+        }
+        // second copying the basis array to the target array
+        byte[] target = new byte[length];
+        if (length < 256) {
+            target = Arrays.copyOfRange(basis, 0, length);
+            return target;
+        }
+        // now length is > 256 so we do need multiple copies
+        int numberOfChunks = length / 256;
+        int dataLoop = 0;
+        for (int i = 0; i < numberOfChunks; i++) {
+            System.arraycopy(basis, 0, target, dataLoop, 256);
+            dataLoop += 256;
+        }
+        // if some bytes are missing we are copying now
+        if (dataLoop < length) {
+            System.arraycopy(basis, 0, target, dataLoop, length - dataLoop);
+        }
+        return target;
+    }
+
 
  }
