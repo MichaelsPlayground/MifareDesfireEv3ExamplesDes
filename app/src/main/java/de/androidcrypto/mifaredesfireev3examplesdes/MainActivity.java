@@ -1378,11 +1378,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 apdu[5] = fileNumber;
                 apdu[6] = 0x00;
                 */
+        byte[] apdu = new byte[0];
         try {
-            readValueFileResponse = isoDep.transceive(wrapMessage(readValueFileCommand, new byte[]{fileNumber}));
-            //readValueFileResponse = isoDep.transceive(apdu);
-        } catch (Exception e) {
-            //throw new RuntimeException(e);
+            apdu = wrapMessage(readValueFileCommand, new byte[]{fileNumber});
+            readValueFileResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
             writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
             return 0;
         }
