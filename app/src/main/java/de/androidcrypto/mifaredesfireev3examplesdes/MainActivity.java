@@ -419,7 +419,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                         // here we are reading the fileSettings
                         byte[] fileSettingsBytes = getFileSettings(output, fileId, responseData);
-                        if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
+                        if ((fileSettingsBytes != null) && (fileSettingsBytes.length >= 7)) {
                             FileSettings fileSettings = new FileSettings(fileId, fileSettingsBytes);
                             writeToUiAppend(output, fileSettings.dump());
                             writeToUiAppend(output, "------------------");
@@ -513,8 +513,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
                     return;
                 }
-                if (fileSizeInt != 32) {
-                    //writeToUiAppend(errorCode, "you entered a wrong file size, 32 bytes allowed only");
+                if (fileSizeInt < 1) {
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
                     return;
                 }
@@ -569,7 +568,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileStandardRead.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // read from a preselected standard file
+                // read from a preselected file
                 clearOutputFields();
                 // this uses the pre selected file
                 if (TextUtils.isEmpty(selectedFileId)) {
@@ -578,12 +577,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     return;
                 }
                 byte fileIdByte = Byte.parseByte(selectedFileId);
+                // check that it is a standard file
+                if (!selectedFileSettings.getFileTypeName().equals(FileSettings.STANDARD_FILE_TYPE)) {
+                    writeToUiAppend(output, "the selected fileID: " + fileIdByte + " is not of type Standard but of type "
+                            + selectedFileSettings.getFileTypeName() + ", aborted");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromStandardFile - wrong selected fileID", COLOR_RED);
+                    return;
+                }
                 byte[] responseData = new byte[2];
                 byte[] result = readFromStandardFile(output, fileIdByte, responseData);
                 //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
                 writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + printData(" data", result));
                 writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + " data: " +  new String(result, StandardCharsets.UTF_8));
-                //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
@@ -640,49 +645,66 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 try {
                     byte[] createValueFileParameters = pb.createValueFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
                             1, 2, 3, 4, lowerLimitInt, upperLimitInt, initialValueInt, false);
-
                     writeToUiAppend(output, printData("createValueFileParameters", createValueFileParameters));
                     byte createValueFileCommand = (byte) 0xcc;
                     byte[] apdu = wrapMessage(createValueFileCommand, createValueFileParameters);
-                    byte[] response = adapter.sendReceiveChain(apdu);
-
+                    byte[] response = adapter.sendSimple(apdu);
                     if (checkDuplicateError(response)) {
                         writeToUiAppend(output, "the file was not created as it already exists, proceed");
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAValueFile - the fileID is existing: " + Ev3.getErrorCode(response), COLOR_GREEN);
                         return;
                     }
-                    int colorFromErrorCode = Ev3.getColorFromErrorCode(response);
-                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAValueFile: " + Ev3.getErrorCode(response), colorFromErrorCode);
-                    writeToUiAppend(output, "createValueFile " + " with FileID: " + Utils.byteToHex(fileIdByte)
-                            + " lower limit: " + lowerLimitInt + " upper limit: " + upperLimitInt + " initial limit: " + initialValueInt);
-                    writeToUiAppend(output, "createValueFile " + checkResponse(response));
+                    if (checkResponse(response)) {
+                        writeToUiAppend(output, "createValueFile " + " with FileID: " + Utils.byteToHex(fileIdByte)
+                                + " lower limit: " + lowerLimitInt + " upper limit: " + upperLimitInt + " initial limit: " + initialValueInt + " SUCCESS");
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAValueFile SUCCESS", COLOR_GREEN);
+                        return;
+                    } else {
+                        int colorFromErrorCode = Ev3.getColorFromErrorCode(response);
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAValueFile FAILURE: " + Ev3.getErrorCode(response), colorFromErrorCode);
+                        writeToUiAppend(output, "createValueFile " + checkResponse(response));
+                    }
                 } catch (IOException e) {
                     //throw new RuntimeException(e);
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "IOException: " + e.getMessage(), COLOR_RED);
                     e.printStackTrace();
                     return;
-                } catch (Exception e) {
-                    //throw new RuntimeException(e);
-                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
-                    writeToUiAppend(errorCode, "Stack: " + Arrays.toString(e.getStackTrace()));
-                    e.printStackTrace();
+                }
+            }
+        });
+
+        fileValueRead.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // read from a preselected file
+                clearOutputFields();
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
                     return;
                 }
-
-
-                if (fileSizeInt != 32) {
-                    //writeToUiAppend(errorCode, "you entered a wrong file size, 32 bytes allowed only");
-                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
+                int fileIdInt = Integer.parseInt(selectedFileId);
+                byte fileIdByte = Byte.parseByte(selectedFileId);
+                // check that it is a value file
+                if (!selectedFileSettings.getFileTypeName().equals(FileSettings.VALUE_FILE_TYPE)) {
+                    writeToUiAppend(output, "the selected fileID: " + fileIdInt + " is not of type Value but of type "
+                            + selectedFileSettings.getFileTypeName() + ", aborted");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromValueFile - wrong selected fileID", COLOR_RED);
                     return;
                 }
                 byte[] responseData = new byte[2];
-                boolean result = createStandardFile(output, fileIdByte, fileSizeInt, responseData);
-                writeToUiAppend(output, "result of createAStandardFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt);
-                //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
-                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+                int result = readFromValueFile(output, fileIdByte, responseData);
+                //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
+                writeToUiAppend(output, "readFromValueFile" + " ID: " + fileIdByte + " value: " + result);
 
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromValueFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
+
+
+
 
         /**
          * section for authentication
@@ -1338,6 +1360,45 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     /**
+     * section for value files
+     */
+
+    private int readFromValueFile(TextView logTextView, byte fileNumber, byte[] response) {
+        // we read from a standard file within the selected application
+        byte readValueFileCommand = (byte) 0x6c;
+        byte[] readValueFileResponse = new byte[0];
+                /*
+                // DESFireEv1:
+                byte[] apdu = new byte[7];
+                apdu[0] = (byte) 0x90;
+                apdu[1] = readValueFileCommand;
+                apdu[2] = 0x00;
+                apdu[3] = 0x00;
+                apdu[4] = 0x01;
+                apdu[5] = fileNumber;
+                apdu[6] = 0x00;
+                */
+        try {
+            readValueFileResponse = isoDep.transceive(wrapMessage(readValueFileCommand, new byte[]{fileNumber}));
+            //readValueFileResponse = isoDep.transceive(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            return 0;
+        }
+        writeToUiAppend(logTextView, printData("readValueFileResponse", readValueFileResponse));
+        // readValueFileResponse length: 6 data: 320000009100
+        if (readValueFileResponse.length > 2) {
+            System.arraycopy(returnStatusBytes(readValueFileResponse), 0, response, 0, 2);
+            byte[] valueBytes = Arrays.copyOf(readValueFileResponse, readValueFileResponse.length - 2);
+            int value = Utils.byteArrayLength4InversedToInt(valueBytes);
+            writeToUiAppend(logTextView, "Actual value: " + value);
+            return value;
+        }
+        return 0;
+    }
+
+    /**
      * section for application handling
      */
 
@@ -1627,7 +1688,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * section for command and response handling
      */
 
-    private byte[] wrapMessage(byte command, byte[] parameters) throws Exception {
+    private byte[] wrapMessage(byte command, byte[] parameters) throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         stream.write((byte) 0x90);
         stream.write(command);

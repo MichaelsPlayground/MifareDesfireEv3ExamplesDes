@@ -192,6 +192,15 @@ public class Utils {
                 ((bytes[3] & 0xFF) << 0 );
     }
 
+    public static int byteArrayLength4NonInversedToInt(byte[] bytes) {
+        return bytes[0] << 24 | (bytes[1] & 0xFF) << 16 | (bytes[2] & 0xFF) << 8 | (bytes[3] & 0xFF);
+    }
+
+    //
+    public static int byteArrayLength4InversedToInt(byte[] bytes) {
+        return bytes[3] << 24 | (bytes[2] & 0xFF) << 16 | (bytes[1] & 0xFF) << 8 | (bytes[0] & 0xFF);
+    }
+
     // gives an 19 byte long timestamp yyyy.MM.dd HH:mm:ss
     public static String getTimestamp() {
         // gives a 19 character long string

@@ -31,6 +31,15 @@ public class FileSettings {
     private byte[] recordsExisting; // 3 bytes
     private byte[] completeResponse; // the complete data returned on getFileSettings command
 
+    public static final String STANDARD_FILE_TYPE = "Standard";
+    public static final String BACKUP_FILE_TYPE = "Backup";
+    public static final String VALUE_FILE_TYPE = "Value";
+    public static final String LINEAR_RECORD_FILE_TYPE = "Linear record";
+    public static final String CYCLIC_RECORD_FILE_TYPE = "Cyclic record";
+    public static final String COMMUNICATION_SETTING_NAME_PLAIN = "Plain";
+    public static final String COMMUNICATION_SETTING_NAME_CMACED = "CMACed";
+    public static final String COMMUNICATION_SETTING_NAME_ENCRYPTED = "Encrypted";
+
     public FileSettings(byte fileNumber, byte[] completeResponse) {
         this.fileNumber = fileNumber;
         this.completeResponse = completeResponse;
@@ -46,9 +55,9 @@ public class FileSettings {
         position ++;
         communicationSettings = completeResponse[position];
         position ++;
-        if (communicationSettings == (byte) 0x00) communicationSettingsName = "Plain";
-        if (communicationSettings == (byte) 0x01) communicationSettingsName = "CMACed";
-        if (communicationSettings == (byte) 0x03) communicationSettingsName = "Encrypted";
+        if (communicationSettings == (byte) 0x00) communicationSettingsName = COMMUNICATION_SETTING_NAME_PLAIN;
+        if (communicationSettings == (byte) 0x01) communicationSettingsName = COMMUNICATION_SETTING_NAME_CMACED;
+        if (communicationSettings == (byte) 0x03) communicationSettingsName = COMMUNICATION_SETTING_NAME_ENCRYPTED;
         accessRightsRwCar = completeResponse[position];
         position ++;
         accessRightsRW = completeResponse[position];
@@ -92,11 +101,11 @@ public class FileSettings {
 
     private String getFileTypeName(byte fileType) {
         switch (fileType) {
-            case (byte) 0x00: return "Standard";
-            case (byte) 0x01: return "Backup";
-            case (byte) 0x02: return "Value";
-            case (byte) 0x03: return "Linear Record";
-            case (byte) 0x05: return "Cyclic Record";
+            case (byte) 0x00: return STANDARD_FILE_TYPE;
+            case (byte) 0x01: return BACKUP_FILE_TYPE;
+            case (byte) 0x02: return VALUE_FILE_TYPE;
+            case (byte) 0x03: return LINEAR_RECORD_FILE_TYPE;
+            case (byte) 0x05: return CYCLIC_RECORD_FILE_TYPE;
             default: return "Unknown";
         }
     }
