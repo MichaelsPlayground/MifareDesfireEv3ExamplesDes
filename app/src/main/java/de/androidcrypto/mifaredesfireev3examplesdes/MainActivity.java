@@ -21,6 +21,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -67,7 +68,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private com.shawnlin.numberpicker.NumberPicker npStandardFileId;
 
     private com.google.android.material.textfield.TextInputEditText fileSelected;
-    private com.google.android.material.textfield.TextInputEditText fileSize, fileData;
+    private com.google.android.material.textfield.TextInputEditText fileStandardSize, fileStandardData;
     private String selectedFileId = "";
     private int selectedFileSize;
     private FileSettings selectedFileSettings;
@@ -82,6 +83,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private Button fileValueCreate, fileValueCredit, fileValueDebit, fileValueRead;
     private com.shawnlin.numberpicker.NumberPicker npValueFileId;
     private com.google.android.material.textfield.TextInputEditText lowerLimitValue, upperLimitValue, initialValueValue, creditDebitValue;
+
+    /**
+     * section for record files
+     */
+
+    private LinearLayout llRecordFile;
+    private Button fileRecordCreate, fileRecordWrite, fileRecordRead;
+    private RadioButton rbLinearRecordFile, rbCyclicRecordFile;
+    private com.shawnlin.numberpicker.NumberPicker npRecordFileId;
+    private com.google.android.material.textfield.TextInputEditText fileRecordSize, fileRecordData, fileRecordNumberOfRecords;
 
 
     /**
@@ -119,7 +130,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private final byte DES_KEY_D2_NUMBER = (byte) 0x02;
     private final byte DES_KEY_D3_NUMBER = (byte) 0x03;
     private final byte DES_KEY_D4_NUMBER = (byte) 0x04;
-
 
 
     // old routines
@@ -165,8 +175,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private static final byte AUTHENTICATION_ERROR = (byte) 0xAE;
     private static final byte ADDITIONAL_FRAME = (byte) 0xAF;
 
-    int COLOR_GREEN = Color.rgb(0,255,0);
-    int COLOR_RED = Color.rgb(255,0,0);
+    int COLOR_GREEN = Color.rgb(0, 255, 0);
+    int COLOR_RED = Color.rgb(255, 0, 0);
 
     // variables for NFC handling
 
@@ -215,8 +225,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         npStandardFileId = findViewById(R.id.npStandardFileId);
         fileSelected = findViewById(R.id.etSelectedFileId);
 
-        fileSize = findViewById(R.id.etFileSize);
-        fileData = findViewById(R.id.etFileData);
+        fileStandardSize = findViewById(R.id.etFileStandardSize);
+        fileStandardData = findViewById(R.id.etFileStandardData);
 
         // value file handling
         llValueFile = findViewById(R.id.llValueFile);
@@ -229,6 +239,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         upperLimitValue = findViewById(R.id.etValueUpperLimit);
         initialValueValue = findViewById(R.id.etValueInitialValue);
         creditDebitValue = findViewById(R.id.etValueCreditDebitValue);
+
+        llRecordFile = findViewById(R.id.llRecordFile);
+        fileRecordCreate = findViewById(R.id.btnCreateRecordFile);
+        fileRecordRead = findViewById(R.id.btnReadRecordFile);
+        fileRecordWrite = findViewById(R.id.btnWriteRecordFile);
+        npRecordFileId = findViewById(R.id.npRecordFileId);
+        fileRecordSize = findViewById(R.id.etRecordFileSize);
+        fileRecordNumberOfRecords = findViewById(R.id.etRecordFileNumberRecords);
+        fileRecordData = findViewById(R.id.etRecordFileData);
+        rbLinearRecordFile = findViewById(R.id.rbLinearRecordFile);
+        rbCyclicRecordFile = findViewById(R.id.rbCyclicRecordFile);
 
         // authentication handling
         authKeyD0 = findViewById(R.id.btnAuthD0);
@@ -445,7 +466,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         });
 
         /**
-         * section  for standard files
+         * section  for files
          */
 
         /*
@@ -574,6 +595,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        /**
+         * section for standard files
+         */
+
         fileStandardCreate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -588,7 +613,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte fileIdByte = (byte) (npStandardFileId.getValue() & 0xFF);
                 // this is done with an EditText
                 //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
-                int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
+                int fileSizeInt = Integer.parseInt(fileStandardSize.getText().toString());
                 if (fileIdByte > (byte) 0x0f) {
                     //writeToUiAppend(errorCode, "you entered a wrong file ID");
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
@@ -604,7 +629,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
             }
         });
 
@@ -619,7 +643,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
                     return;
                 }
-                String dataToWrite = fileData.getText().toString();
+                String dataToWrite = fileStandardData.getText().toString();
                 byte[] dataToWriteBytes = dataToWrite.getBytes(StandardCharsets.UTF_8);
                 // here we are using testdata
                 int fileSize = selectedFileSize;
@@ -669,7 +693,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte[] result = readFromStandardFile(output, fileIdByte, responseData);
                 //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
                 writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + printData(" data", result));
-                writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + " data: " +  new String(result, StandardCharsets.UTF_8));
+                writeToUiAppend(output, "readFromStandardFile" + " ID: " + fileIdByte + " data: " + new String(result, StandardCharsets.UTF_8));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
@@ -693,7 +717,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte fileIdByte = (byte) (npValueFileId.getValue() & 0xFF);
                 // this is done with an EditText
                 //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
-                int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
+
                 if (fileIdByte > (byte) 0x0f) {
                     //writeToUiAppend(errorCode, "you entered a wrong file ID");
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
@@ -873,6 +897,64 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         });
 
         /**
+         * section for record files
+         */
+
+        fileRecordCreate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // create a new value file
+                // get the input and sanity checks
+                clearOutputFields();
+
+                // the number of files on an EV1 tag is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 15 files (00..14)
+                // this limit is hardcoded in the XML file for the fileId numberPicker
+
+                // this uses the numberPicker
+                byte fileIdByte = (byte) (npRecordFileId.getValue() & 0xFF);
+                // this is done with an EditText
+                //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
+                if (fileIdByte > (byte) 0x0f) {
+                    //writeToUiAppend(errorCode, "you entered a wrong file ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
+                    return;
+                }
+                int fileSizeInt = Integer.parseInt(fileRecordSize.getText().toString());
+                if (fileSizeInt < 1) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
+                    return;
+                }
+
+                int fileNumberOfRecordsInt = Integer.parseInt(fileRecordNumberOfRecords.getText().toString());
+                if (fileNumberOfRecordsInt < 2) {
+                    // this should not happen as the limit is hardcoded in npFileId
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a 0 record number (minimum 2)", COLOR_RED);
+                    return;
+                }
+
+                // get the type of file - linear or cyclic
+                boolean isLinearRecordFile = rbLinearRecordFile.isChecked();
+                boolean isCyclicRecordFile = rbCyclicRecordFile.isChecked();
+
+                String fileTypeString = "";
+                if (isLinearRecordFile) {
+                    fileTypeString = "LinearRecord";
+                } else {
+                    fileTypeString = "CyclicRecord";
+                }
+
+                byte[] responseData = new byte[2];
+                boolean result = createRecordFile(output, fileIdByte, fileSizeInt, fileNumberOfRecordsInt, isLinearRecordFile, responseData);
+                writeToUiAppend(output, "result of createARecordFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt + " nbr of records: " + fileNumberOfRecordsInt);
+                //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "create" + fileTypeString + "File Success: " +  Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+            }
+        });
+
+
+        /**
          * section for authentication
          */
 
@@ -1021,8 +1103,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
             }
         });
-
-
 
 
     }
@@ -1439,7 +1519,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         int expectedResponse = numberOfBytes - offsetBytes;
         if (readStandardFileResponse.length == expectedResponse) {
             return readStandardFileResponse;
-        } else if (readStandardFileResponse.length > expectedResponse){
+        } else if (readStandardFileResponse.length > expectedResponse) {
             // more data is provided - truncated
             return Arrays.copyOf(readStandardFileResponse, expectedResponse);
         } else {
@@ -1644,7 +1724,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             int value = Utils.byteArrayLength4InversedToInt(valueBytes);
             writeToUiAppend(logTextView, "Actual value: " + value);
             return value;
-        } else if(readValueFileResponse.length == 2) {
+        } else if (readValueFileResponse.length == 2) {
             System.arraycopy(returnStatusBytes(readValueFileResponse), 0, response, 0, 2);
             return 0;
         } else {
@@ -1703,6 +1783,94 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             return false;
         }
     }
+
+    /**
+     * section for record files
+     */
+
+    private boolean createRecordFile(TextView logTextView, byte fileNumber, int fileSize, int numberOfRecords, boolean isLinearRecordFile, byte[] response) {
+        // we create a records file within the selected application
+        byte createLinearRecordFileCommand = (byte) 0xc1;
+        byte createCyclicRecordFileCommand = (byte) 0xc0;
+        byte commSettingsByte = 0; // plain communication without any encryption
+                /*
+                M0775031 DESFIRE
+                Plain Communication = 0;
+                Plain communication secured by DES/3DES MACing = 1;
+                Fully DES/3DES enciphered communication = 3;
+                 */
+        //byte[] accessRights = new byte[]{(byte) 0xee, (byte) 0xee}; // should mean plain/free access without any keys
+                /*
+                There are four different Access Rights (2 bytes for each file) stored for each file within
+                each application:
+                - Read Access
+                - Write Access
+                - Read&Write Access
+                - ChangeAccessRights
+                 */
+        // the application master key is key 0
+        // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
+        byte accessRightsRwCar = (byte) 0x12; // Read&Write Access & ChangeAccessRights
+        byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
+
+        PayloadBuilder pb = new PayloadBuilder();
+        byte createRecordFileCommand;
+        byte[] apdu;
+        byte[] createRecordFileParameters;
+        if (isLinearRecordFile) {
+            createRecordFileParameters = pb.createLinearRecordFile(fileNumber, PayloadBuilder.CommunicationSetting.Plain,
+                    1, 2, 3, 4, fileSize, numberOfRecords);
+            createRecordFileCommand = createLinearRecordFileCommand;
+            writeToUiAppend(output, printData("payloadCreateLinearRecordFile", createRecordFileParameters));
+        } else {
+            createRecordFileParameters = pb.createCyclicRecordFile(fileNumber, PayloadBuilder.CommunicationSetting.Plain,
+                    1, 2, 3, 4, fileSize, numberOfRecords);
+            createRecordFileCommand = createCyclicRecordFileCommand;
+            writeToUiAppend(output, printData("payloadCreateCyclicRecordFile", createRecordFileParameters));
+        }
+        byte[] createRecordFileResponse = new byte[0];
+
+        try {
+            apdu = wrapMessage(createRecordFileCommand, createRecordFileParameters);
+            createRecordFileResponse = adapter.sendSimple(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        System.arraycopy(returnStatusBytes(createRecordFileResponse), 0, response, 0, 2);
+        writeToUiAppend(logTextView, printData("createRecordFileResponse", createRecordFileResponse));
+        if (checkDuplicateError(createRecordFileResponse)) {
+            writeToUiAppend(logTextView, "the file was not created as it already exists, proceed");
+            return true;
+        }
+        if (checkResponse(createRecordFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+
+
+
+    /*
+     if (isLinearRecordFile) {
+                    payloadRecordFile = pb.createLinearRecordsFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
+                            1, 2, 3, 4, fileSizeInt, fileNumberOfRecordsInt);
+                    writeToUiAppend(output, printData("payloadCreateRecordFile", payloadRecordFile));
+                    success = desfire.createLinearRecordFile(payloadRecordFile);
+                } else {
+                    payloadRecordFile = pb.createCyclicRecordsFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
+                            1, 2, 3, 4, fileSizeInt, fileNumberOfRecordsInt);
+                    writeToUiAppend(output, printData("payloadCreateRecordFile", payloadRecordFile));
+                    success = desfire.createCyclicRecordFile(payloadRecordFile);
+                }
+     */
+
 
     /**
      * section for application handling
@@ -1874,7 +2042,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private boolean changeKeyDes(TextView logTextView, byte keyNumber, byte[] oldKey, byte[] newKey, byte[] response) {
         // sanity checks
-        if (keyNumber > (byte) 0x0f) return false; // todo this check is incomplete, use maximum key number from key settings
+        if (keyNumber > (byte) 0x0f)
+            return false; // todo this check is incomplete, use maximum key number from key settings
         if ((oldKey == null) | (newKey == null)) return false;
         if (oldKey.length != 8) return false;
         if (newKey.length != 8) return false;
@@ -1960,11 +2129,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * the DES key, takes one bit of the version. Since the version is only
      * one byte, the information is repeated if dealing with 16/24-byte keys.
      *
-     * @param a			1K/2K/3K 3DES
-     * @param offset	start position of the key within a
-     * @param length	key length
-     * @param version	the 1-byte version
-     * Source: DESFireEV1.java (NFCJLIB)
+     * @param a       1K/2K/3K 3DES
+     * @param offset  start position of the key within a
+     * @param length  key length
+     * @param version the 1-byte version
+     *                Source: DESFireEV1.java (NFCJLIB)
      */
     private static void setKeyVersion(byte[] a, int offset, int length, byte version) {
         if (length == 8 || length == 16 || length == 24) {
@@ -2006,14 +2175,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         byte[] ciphertext = new byte[data.length];
         byte[] cipheredBlock = new byte[8];
 
-                // XOR w/ previous ciphered block --> decrypt
-                for (int i = 0; i < data.length; i += 8) {
-                    for (int j = 0; j < 8; j++) {
-                        data[i + j] ^= cipheredBlock[j];
-                    }
-                    cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
-                    System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
-                }
+        // XOR w/ previous ciphered block --> decrypt
+        for (int i = 0; i < data.length; i += 8) {
+            for (int j = 0; j < 8; j++) {
+                data[i + j] ^= cipheredBlock[j];
+            }
+            cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
+            System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
+        }
         return ciphertext;
     }
 
@@ -2129,7 +2298,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private static List<Byte> divideArrayToBytes(byte[] source) {
         List<Byte> result = new ArrayList<Byte>();
         for (int i = 0; i < source.length; i++) {
-           result.add(source[i]);
+            result.add(source[i]);
         }
         return result;
     }
@@ -2201,7 +2370,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
 
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -2268,13 +2436,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             //int color = Color.rgb(0,255,0); // green
             //Color from hex string
             //int color2 = Color.parseColor("#FF11AA"); light blue
-            int[][] states = new int[][] {
-                    new int[] { android.R.attr.state_focused}, // focused
-                    new int[] { android.R.attr.state_hovered}, // hovered
-                    new int[] { android.R.attr.state_enabled}, // enabled
-                    new int[] { }  //
+            int[][] states = new int[][]{
+                    new int[]{android.R.attr.state_focused}, // focused
+                    new int[]{android.R.attr.state_hovered}, // hovered
+                    new int[]{android.R.attr.state_enabled}, // enabled
+                    new int[]{}  //
             };
-            int[] colors = new int[] {
+            int[] colors = new int[]{
                     color,
                     color,
                     color,
@@ -2317,18 +2485,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private void clearOutputFields() {
         runOnUiThread(() -> {
-                    output.setText("");
-                    errorCode.setText("");
-                });
+            output.setText("");
+            errorCode.setText("");
+        });
         // reset the border color to primary for errorCode
         int color = R.color.colorPrimary;
-        int[][] states = new int[][] {
-                new int[] { android.R.attr.state_focused}, // focused
-                new int[] { android.R.attr.state_hovered}, // hovered
-                new int[] { android.R.attr.state_enabled}, // enabled
-                new int[] { }  //
+        int[][] states = new int[][]{
+                new int[]{android.R.attr.state_focused}, // focused
+                new int[]{android.R.attr.state_hovered}, // hovered
+                new int[]{android.R.attr.state_enabled}, // enabled
+                new int[]{}  //
         };
-        int[] colors = new int[] {
+        int[] colors = new int[]{
                 color,
                 color,
                 color,
@@ -2342,9 +2510,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         selectedApplicationId = null;
         selectedFileId = "";
         runOnUiThread(() -> {
-                    applicationSelected.setText("");
-                    fileSelected.setText("");
-                });
+            applicationSelected.setText("");
+            fileSelected.setText("");
+        });
         KEY_NUMBER_USED_FOR_AUTHENTICATION = -1;
     }
 

@@ -383,7 +383,7 @@ public class PayloadBuilder {
      * section for file type 03 = Linear Records Files
      */
 
-    public byte[] createLinearRecordsFile(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
+    public byte[] createLinearRecordFile(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((keyRW < 0) || (keyRW > MAXIMUM_KEY_NUMBER)) return null;
@@ -412,7 +412,7 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] createLinearRecordsFileSizeLimited(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
+    public byte[] createLinearRecordFileSizeLimited(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((keyRW < 0) || (keyRW > MAXIMUM_KEY_NUMBER)) return null;
@@ -441,15 +441,15 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] writeToLinearRecordsFile(int fileNumber, String data) {
+    public byte[] writeToLinearRecordFile(int fileNumber, String data) {
         // is essentially the same command as for Cyclic Records Files
-        return writeToCyclicRecordsFile(fileNumber, data.getBytes(StandardCharsets.UTF_8));
+        return writeToCyclicRecordFile(fileNumber, data.getBytes(StandardCharsets.UTF_8));
         //return writeToLinearRecordsFile(fileNumber, data.getBytes(StandardCharsets.UTF_8));
     }
 
-    public byte[] writeToLinearRecordsFile(int fileNumber, byte[] data) {
+    public byte[] writeToLinearRecordFile(int fileNumber, byte[] data) {
         // is essentially the same command as for Cyclic Records Files
-        return writeToCyclicRecordsFile(fileNumber, data);
+        return writeToCyclicRecordFile(fileNumber, data);
     }
 
     /**
@@ -458,7 +458,7 @@ public class PayloadBuilder {
 
     // as a new record is temporary stored the maximum number needs to be maximum + 1,
     // so the minimum on this field is 2
-    public byte[] createCyclicRecordsFile(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
+    public byte[] createCyclicRecordFile(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((keyRW < 0) || (keyRW > MAXIMUM_KEY_NUMBER)) return null;
@@ -487,7 +487,7 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] createCyclicRecordsFileSizeLimited(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
+    public byte[] createCyclicRecordFileSizeLimited(int fileNumber, CommunicationSetting communicationSetting, int keyRW, int keyCar, int keyR, int keyW, int fileSize, int maximumRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((keyRW < 0) || (keyRW > MAXIMUM_KEY_NUMBER)) return null;
@@ -516,11 +516,11 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] writeToCyclicRecordsFile(int fileNumber, String data) {
-        return writeToCyclicRecordsFile(fileNumber, data.getBytes(StandardCharsets.UTF_8));
+    public byte[] writeToCyclicRecordFile(int fileNumber, String data) {
+        return writeToCyclicRecordFile(fileNumber, data.getBytes(StandardCharsets.UTF_8));
     }
 
-    public byte[] writeToCyclicRecordsFile(int fileNumber, byte[] data) {
+    public byte[] writeToCyclicRecordFile(int fileNumber, byte[] data) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if (data == null) return null;
@@ -537,7 +537,7 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] writeToCyclicRecordsFileSizeLimited(int fileNumber, byte[] data) {
+    public byte[] writeToCyclicRecordfileSizeLimited(int fileNumber, byte[] data) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if (data == null) return null;
@@ -554,7 +554,7 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] readFromCyclicRecordsFile(int fileNumber, int recordNumberToRead, int numberOfRecords) {
+    public byte[] readFromCyclicRecordFile(int fileNumber, int recordNumberToRead, int numberOfRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((recordNumberToRead < 0) || (recordNumberToRead > MAXIMUM_RECORD_NUMBER)) return null;
