@@ -29,12 +29,30 @@ public class PayloadBuilder {
     private final int MAXIMUM_KEY_NUMBER = 15;
     private final int MAXIMUM_RECORD_NUMBER = 15;
     private final int MAXIMUM_FILE_SIZE = 32; // avoid framing
-    private final int MAXIMUM_VALUE_CREDIT = 500;
+    public static final int MAXIMUM_VALUE_CREDIT = 500;
     private final int MAXIMUM_VALUE_DEBIT = 500;
     private final int MINIMUM_VALUE_LOWER_LIMIT = 0;
     private final int MAXIMUM_VALUE_LOWER_LIMIT = 500;
     private final int MINIMUM_VALUE_UPPER_LIMIT = 0;
     private final int MAXIMUM_VALUE_UPPER_LIMIT = 500;
+
+    public byte[] createApplication(byte[] aid, byte keySettings, byte numberOfKeys) {
+        // sanity checks
+        if ((aid == null)) return null;
+        if (Arrays.equals(aid, new byte[3])) return null;
+        if (aid.length != 3) return null;
+        // todo get a good check on key numbers range because they are combined with the type of keys:
+        // 00..0f = DES keys, 40..4f TDES keys, 80..8f AES keys
+        if ((numberOfKeys < 1) || (numberOfKeys > 15)) return null;
+
+        // build
+        // we use a ByteArrayOutputStream
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(aid, 0, 3);
+        baos.write(keySettings);
+        baos.write(numberOfKeys);
+        return baos.toByteArray();
+    }
 
     public byte[] createApplicationIso(byte[] aid, byte keySettings, byte numberOfKeys, byte[] isoFileId, byte[] isoDfName) {
         // sanity checks

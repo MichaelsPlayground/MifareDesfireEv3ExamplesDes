@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private LinearLayout llStandardFile;
     private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead;
-    private com.shawnlin.numberpicker.NumberPicker npFileId;
+    private com.shawnlin.numberpicker.NumberPicker npStandardFileId;
 
     private com.google.android.material.textfield.TextInputEditText fileSelected;
     private com.google.android.material.textfield.TextInputEditText fileSize, fileData;
@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
         fileStandardWrite = findViewById(R.id.btnWriteStandardFile);
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
-        npFileId = findViewById(R.id.npStandardFileId);
+        npStandardFileId = findViewById(R.id.npStandardFileId);
         fileSelected = findViewById(R.id.etSelectedFileId);
 
         fileSize = findViewById(R.id.etFileSize);
@@ -313,6 +313,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you did not enter a 6 hex string application ID", COLOR_RED);
                     return;
                 }
+                writeToUiAppend(output, "create an application with id: " + Utils.bytesToHexNpe(applicationIdentifier));
+                // change the aid to LSB
+                Utils.reverseByteArrayInPlace(applicationIdentifier);
                 byte[] responseData = new byte[2];
                 boolean result = createApplicationPlainDes(output, applicationIdentifier, numberOfKeysByte, responseData);
                 writeToUiAppend(output, "result of createAnApplication: " + result);
@@ -343,7 +346,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 }
                 String[] applicationList = new String[applicationIdList.size()];
                 for (int i = 0; i < applicationIdList.size(); i++) {
-                    applicationList[i] = Utils.bytesToHex(applicationIdList.get(i));
+                    byte[] aid = applicationIdList.get(i);
+                    Utils.reverseByteArrayInPlace(aid);
+                    applicationList[i] = Utils.bytesToHexNpe(aid);
                 }
 
                 // setup the alert builder
@@ -360,7 +365,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         selectedApplicationId = Utils.hexStringToByteArray(applicationList[which]);
                         // now we run the command to select the application
                         byte[] responseData = new byte[2];
-                        boolean result = selectApplicationDes(output, selectedApplicationId, responseData);
+                        byte[] aid = selectedApplicationId.clone();
+                        Utils.reverseByteArrayInPlace(aid);
+                        boolean result = selectApplicationDes(output, aid, responseData);
                         writeToUiAppend(output, "result of selectApplicationDes: " + result);
                         //writeToUiAppend(errorCode, "selectApplicationDes: " + Ev3.getErrorCode(responseData));
                         int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
@@ -454,7 +461,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 }
                 String[] fileList = new String[fileIdList.size()];
                 for (int i = 0; i < fileIdList.size(); i++) {
-                    fileList[i] = Utils.byteToHex(fileIdList.get(i));
+                    // get the file type for each entry
+                    byte fileId = fileIdList.get(i);
+                    FileSettings fileSettings;
+                    String fileTypeName = "unknown";
+                    byte[] fileSettingsBytes = getFileSettings(output, fileId, responseData);
+                    if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
+                        fileSettings = new FileSettings(fileId, fileSettingsBytes);
+                        fileTypeName = fileSettings.getFileTypeName();
+                    }
+                    //fileList[i] = Utils.byteToHex(fileIdList.get(i)) + " (" + fileTypeName + ")";
+                    fileList[i] = fileIdList.get(i) + " (" + fileTypeName + ")";
                 }
 
                 // setup the alert builder
@@ -465,7 +482,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         writeToUiAppend(output, "you  selected nr " + which + " = " + fileList[which]);
-                        selectedFileId = fileList[which];
+                        //selectedFileId = fileList[which];
+                        selectedFileId = fileIdList.get(which).toString();
                         // now we run the command to select the application
                         byte[] responseData = new byte[2];
                         //boolean result = selectDes(output, selectedApplicationId, responseData);
@@ -476,7 +494,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         String outputString = fileList[which] + " ";
                         byte fileIdByte = Byte.parseByte(selectedFileId);
                         byte[] fileSettingsBytes = getFileSettings(output, fileIdByte, responseData);
-                        if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
+                        if ((fileSettingsBytes != null) && (fileSettingsBytes.length >= 7)) {
                             selectedFileSettings = new FileSettings(fileIdByte, fileSettingsBytes);
                             outputString += "(" + selectedFileSettings.getFileTypeName();
                             selectedFileSize = selectedFileSettings.getFileSizeInt();
@@ -504,7 +522,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // this limit is hardcoded in the XML file for the fileId numberPicker
 
                 // this uses the numberPicker
-                byte fileIdByte = (byte) (npFileId.getValue() & 0xFF);
+                byte fileIdByte = (byte) (npStandardFileId.getValue() & 0xFF);
                 // this is done with an EditText
                 //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
                 int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
@@ -609,7 +627,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // this limit is hardcoded in the XML file for the fileId numberPicker
 
                 // this uses the numberPicker
-                byte fileIdByte = (byte) (npFileId.getValue() & 0xFF);
+                byte fileIdByte = (byte) (npValueFileId.getValue() & 0xFF);
                 // this is done with an EditText
                 //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
                 int fileSizeInt = Integer.parseInt(fileSize.getText().toString());
@@ -696,15 +714,100 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte[] responseData = new byte[2];
                 int result = readFromValueFile(output, fileIdByte, responseData);
                 //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
-                writeToUiAppend(output, "readFromValueFile" + " ID: " + fileIdByte + " value: " + result);
+                writeToUiAppend(output, "readFromValueFile" + " ID: " + fileIdByte + " value: " + result + printData(" response", responseData));
 
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromValueFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
 
+        fileValueCredit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // credit a value file
+                clearOutputFields();
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                int fileIdInt = Integer.parseInt(selectedFileId);
+                byte fileIdByte = Byte.parseByte(selectedFileId);
+                // check that it is a value file
+                if (!selectedFileSettings.getFileTypeName().equals(FileSettings.VALUE_FILE_TYPE)) {
+                    writeToUiAppend(output, "the selected fileID: " + fileIdInt + " is not of type Value but of type "
+                            + selectedFileSettings.getFileTypeName() + ", aborted");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromValueFile - wrong selected fileID", COLOR_RED);
+                    return;
+                }
 
+                int changeValueInt = Integer.parseInt(creditDebitValue.getText().toString());
+                if ((changeValueInt < 1) || (changeValueInt > PayloadBuilder.MAXIMUM_VALUE_CREDIT)) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong change value, should be between lower and higher limit", COLOR_RED);
+                    return;
+                }
 
+                byte[] responseData = new byte[2];
+                boolean result = creditValueFile(output, fileIdInt, changeValueInt, responseData);
+                //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
+                writeToUiAppend(output, "creditValueFile" + " ID: " + fileIdByte + " credit value: " + changeValueInt + " result: " + result);
+
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "creditValueFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+                // dont forget to commit the change
+                boolean commitSuccess = commitWriteToFile(output, responseData);
+                writeToUiAppend(output, "result of commit: " + commitSuccess);
+                //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
+                colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "commit: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        fileValueDebit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // credit a value file
+                clearOutputFields();
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                int fileIdInt = Integer.parseInt(selectedFileId);
+                byte fileIdByte = Byte.parseByte(selectedFileId);
+                // check that it is a value file
+                if (!selectedFileSettings.getFileTypeName().equals(FileSettings.VALUE_FILE_TYPE)) {
+                    writeToUiAppend(output, "the selected fileID: " + fileIdInt + " is not of type Value but of type "
+                            + selectedFileSettings.getFileTypeName() + ", aborted");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "readFromValueFile - wrong selected fileID", COLOR_RED);
+                    return;
+                }
+
+                int changeValueInt = Integer.parseInt(creditDebitValue.getText().toString());
+                if ((changeValueInt < 1) || (changeValueInt > PayloadBuilder.MAXIMUM_VALUE_CREDIT)) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong change value, should be between lower and higher limit", COLOR_RED);
+                    return;
+                }
+
+                byte[] responseData = new byte[2];
+                boolean result = debitValueFile(output, fileIdInt, changeValueInt, responseData);
+                //byte[] result = readFromStandardFileLimitedSize(output, fileIdByte, responseData);
+                writeToUiAppend(output, "debitValueFile" + " ID: " + fileIdByte + " debit value: " + changeValueInt + " result: " + result);
+
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "debitValueFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+                // dont forget to commit the change
+                boolean commitSuccess = commitWriteToFile(output, responseData);
+                writeToUiAppend(output, "result of commit: " + commitSuccess);
+                //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
+                colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "commit: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
 
         /**
          * section for authentication
@@ -1225,13 +1328,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // less data is provided - we return as much as possible
             return readStandardFileResponse;
         }
-
-        //return readStandardFileResponse;
-        // apdu length: 13 data: 90bd0000070000000020000000
-        // response length: 42 data: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fae2873a3bf1ef7809100
-
-        // APDU length: 13 data: 90bd0000070000000020000000
-        // Response length: 42 data: 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f3898f824d7f256f59100
     }
 
     private byte[] readFromStandardFileLimitedSize(TextView logTextView, byte fileNumber, byte[] response) {
@@ -1360,6 +1456,34 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     /**
+     * section for commit
+     */
+
+    private boolean commitWriteToFile(TextView logTextView, byte[] response) {
+        // don't forget to commit all changes
+        byte commitCommand = (byte) 0xc7;
+        byte[] commitResponse = new byte[0];
+        byte[] apdu = new byte[0];
+        try {
+            apdu = wrapMessage(commitCommand, null);
+            commitResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("commitResponse", commitResponse));
+        System.arraycopy(returnStatusBytes(commitResponse), 0, response, 0, 2);
+        if (checkResponse(commitResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * section for value files
      */
 
@@ -1384,6 +1508,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             readValueFileResponse = adapter.sendSimple(apdu);
         } catch (IOException e) {
             writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return 0;
+        }
+        if (readValueFileResponse == null) {
+            writeToUiAppend(logTextView, "unknown error");
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
             return 0;
         }
         writeToUiAppend(logTextView, printData("readValueFileResponse", readValueFileResponse));
@@ -1394,8 +1526,64 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             int value = Utils.byteArrayLength4InversedToInt(valueBytes);
             writeToUiAppend(logTextView, "Actual value: " + value);
             return value;
+        } else if(readValueFileResponse.length == 2) {
+            System.arraycopy(returnStatusBytes(readValueFileResponse), 0, response, 0, 2);
+            return 0;
+        } else {
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return 0;
         }
-        return 0;
+    }
+
+    private boolean creditValueFile(TextView logTextView, int fileNumber, int changeValue, byte[] response) {
+        byte creditValueFileCommand = (byte) 0x0c;
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] parameters = pb.creditValueFile(fileNumber, changeValue);
+        byte[] creditValueResponse = new byte[0];
+        byte[] apdu = new byte[0];
+        try {
+            apdu = wrapMessage(creditValueFileCommand, parameters);
+            creditValueResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("creditValueFileResponse", creditValueResponse));
+        // readValueFileResponse length: 6 data: 320000009100
+        System.arraycopy(returnStatusBytes(creditValueResponse), 0, response, 0, 2);
+        if (checkResponse(creditValueResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private boolean debitValueFile(TextView logTextView, int fileNumber, int changeValue, byte[] response) {
+        byte debitValueFileCommand = (byte) 0xdc;
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] parameters = pb.creditValueFile(fileNumber, changeValue);
+        byte[] debitValueResponse = new byte[0];
+        byte[] apdu = new byte[0];
+        try {
+            apdu = wrapMessage(debitValueFileCommand, parameters);
+            debitValueResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("debValueFileResponse", debitValueResponse));
+        // readValueFileResponse length: 6 data: 320000009100
+        System.arraycopy(returnStatusBytes(debitValueResponse), 0, response, 0, 2);
+        if (checkResponse(debitValueResponse)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -1484,9 +1672,34 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         if (applicationIdentifier.length != 3) return false;
 
         // create an application
-        writeToUiAppend(logTextView, "create the application " + Utils.bytesToHex(applicationIdentifier));
+        //writeToUiAppend(logTextView, "create the application " + Utils.bytesToHex(applicationIdentifier));
         byte createApplicationCommand = (byte) 0xca;
         byte applicationMasterKeySettings = (byte) 0x0f;
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] parameters = pb.createApplication(applicationIdentifier, applicationMasterKeySettings, numberOfKeys);
+        byte[] createApplicationResponse = new byte[0];
+        byte[] apdu = new byte[0];
+        try {
+            apdu = wrapMessage(createApplicationCommand, parameters);
+            createApplicationResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("createApplicationResponse", createApplicationResponse));
+        // readValueFileResponse length: 6 data: 320000009100
+        System.arraycopy(returnStatusBytes(createApplicationResponse), 0, response, 0, 2);
+        if (checkResponse(createApplicationResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+
+        /*
+
+
         byte[] createApplicationParameters = new byte[5];
         System.arraycopy(applicationIdentifier, 0, createApplicationParameters, 0, applicationIdentifier.length);
         createApplicationParameters[3] = applicationMasterKeySettings;
@@ -1510,6 +1723,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             System.arraycopy(responseManual, 0, response, 0, 2);
             return false;
         }
+
+         */
     }
 
     private boolean selectApplicationDes(TextView logTextView, byte[] applicationIdentifier, byte[] response) {
