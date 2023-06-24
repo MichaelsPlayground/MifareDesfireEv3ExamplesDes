@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     private LinearLayout llGeneralWorkflow;
-    private Button tagVersion;
+    private Button tagVersion, keySettings, freeMemory, formatPicc, selectMasterApplication;
 
     /**
      * section for application handling
@@ -190,6 +190,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         // general workflow
         tagVersion = findViewById(R.id.btnGetTagVersion);
+        keySettings = findViewById(R.id.btnGetKeySettings);
+        freeMemory = findViewById(R.id.btnGetFreeMemory);
+        formatPicc = findViewById(R.id.btnFormatPicc);
+        selectMasterApplication = findViewById(R.id.btnSelectMasterApplication);
 
         // application handling
         llApplicationHandling = findViewById(R.id.llApplications);
@@ -268,6 +272,65 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 if (versionInfo != null) {
                     writeToUiAppend(output, versionInfo.dump());
                 }
+            }
+        });
+
+        freeMemory.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // get the free memory on the tag
+                clearOutputFields();
+                writeToUiAppend(output, "get the free memory on the card");
+                byte[] responseData = new byte[2];
+                int result = getFreeMemory(output, responseData);
+                writeToUiAppend(output, "getFreeMemory: " + result);
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getFreeMemory: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        formatPicc.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // get the free memory on the tag
+                clearOutputFields();
+                writeToUiAppend(output, "format the PICC");
+
+                // open a confirmation dialog
+                DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        switch (which) {
+                            case DialogInterface.BUTTON_POSITIVE:
+                                //Yes button clicked
+                                boolean success;
+                                byte[] responseData = new byte[2];
+                                success = formatPicc(output, responseData);
+                                writeToUiAppend(output, "formatPiccSuccess: " + success);
+                                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "getFreeMemory: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+                                break;
+                            case DialogInterface.BUTTON_NEGATIVE:
+                                //No button clicked
+                                // nothing to do
+                                writeToUiAppend(output, "format of the PICC aborted");
+                                break;
+                        }
+                    }
+                };
+                final String selectedFolderString = "You are going to format the PICC " + "\n\n" +
+                        "Do you want to proceed ?";
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+
+                builder.setMessage(selectedFolderString).setPositiveButton(android.R.string.yes, dialogClickListener)
+                        .setNegativeButton(android.R.string.no, dialogClickListener)
+                        .setTitle("FORMAT the PICC")
+                        .show();
+        /*
+        If you want to use the "yes" "no" literals of the user's language you can use this
+        .setPositiveButton(android.R.string.yes, dialogClickListener)
+        .setNegativeButton(android.R.string.no, dialogClickListener)
+         */
             }
         });
 
@@ -973,6 +1036,61 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         return new VersionInfo(adapter.receiveResponseChain(adapter.sendRequestChain(apdu)));
         //byte[] bytes = sendRequest(logTextView, GET_VERSION_INFO);
         //return new VersionInfo(bytes);
+    }
+
+    private int getFreeMemory(TextView logTextView, byte[] response) {
+        // get the free memory on the card
+        byte getFreeMemoryCommand = (byte) 0x6e;
+        byte[] getFreeMemoryResponse = new byte[0];
+        byte[] apdu;
+        try {
+            apdu = wrapMessage(getFreeMemoryCommand, null);
+            getFreeMemoryResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return 0;
+        }
+        writeToUiAppend(logTextView, printData("getFreeMemoryResponse", getFreeMemoryResponse));
+        // getFreeMemoryResponse length: 5 data: 400800 9100 (EV1 2K after create 1 app + 1 32 byte file)
+        // getFreeMemoryResponse length: 5 data: 000a00 9100 (EV2 2K empty)
+        // getFreeMemoryResponse length: 5 data: 001400 9100 (EV2 4K empty)
+        // 400800 = 00 08 40 = 2112 bytes
+        // 000a00 = 00 0a 00 = 2560 bytes
+        // 001400 = 00 14 00 = 5120 bytes
+        int memorySize = 0;
+        if (getFreeMemoryResponse.length > 2) {
+            byte[] lengthBytes = Arrays.copyOf(getFreeMemoryResponse, getFreeMemoryResponse.length - 2);
+            memorySize = Utils.intFrom3ByteArrayInversed(lengthBytes);
+            writeToUiAppend(logTextView, "free memory on card: " + memorySize);
+        }
+        System.arraycopy(returnStatusBytes(getFreeMemoryResponse), 0, response, 0, 2);
+        return memorySize;
+    }
+
+    private boolean formatPicc(TextView logTextView, byte[] response) {
+        // now we are formatting the card
+        byte formatPiccCommand = (byte) 0xfc;
+        byte[] formatPiccResponse = new byte[0];
+        byte[] apdu;
+        try {
+            apdu = wrapMessage(formatPiccCommand, null);
+            formatPiccResponse = adapter.sendSimple(apdu);
+        } catch (IOException e) {
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("formatPiccResponse", formatPiccResponse));
+        System.arraycopy(returnStatusBytes(formatPiccResponse), 0, response, 0, 2);
+        if (checkResponse(formatPiccResponse)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

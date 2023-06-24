@@ -163,7 +163,9 @@ public class Utils {
                 ((bytes[0] & 0xFF) << 0 );
     }
 
-
+    private int byteArrayLength3InversedToInt(byte[] data) {
+        return (data[2] & 0xff) << 16 | (data[1] & 0xff) << 8 | (data[0] & 0xff);
+    }
     /**
      * Returns a byte array with length = 4
      * @param value
