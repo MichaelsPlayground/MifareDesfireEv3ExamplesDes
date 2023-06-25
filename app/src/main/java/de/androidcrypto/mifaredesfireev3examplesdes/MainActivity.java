@@ -42,6 +42,8 @@ import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
+    private static final String TAG = MainActivity.class.getName();
+
     private com.google.android.material.textfield.TextInputEditText output, errorCode;
     private com.google.android.material.textfield.TextInputLayout errorCodeLayout;
 
@@ -99,6 +101,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private com.shawnlin.numberpicker.NumberPicker npRecordFileId;
     private com.google.android.material.textfield.TextInputEditText fileRecordSize, fileRecordData, fileRecordNumberOfRecords;
 
+    /**
+     * work with encrypted standard files - EXPERIMENTAL
+     */
+
+    private LinearLayout llStandardFileEnc;
+    private Button fileStandardCreateEnc, fileStandardWriteEnc;
 
     /**
      * section for authentication
@@ -256,6 +264,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileRecordData = findViewById(R.id.etRecordFileData);
         rbLinearRecordFile = findViewById(R.id.rbLinearRecordFile);
         rbCyclicRecordFile = findViewById(R.id.rbCyclicRecordFile);
+
+        // encrypted standard file handling
+        llStandardFileEnc = findViewById(R.id.llStandardFileEnc);
+        fileStandardCreateEnc = findViewById(R.id.btnCreateStandardFileEnc);
+        fileStandardWriteEnc = findViewById(R.id.btnWriteStandardFileEnc);
 
         // authentication handling
         authKeyD0 = findViewById(R.id.btnAuthD0);
@@ -463,6 +476,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                         writeToUiAppendBorderColor(errorCode, errorCodeLayout, "selectApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
                         applicationSelected.setText(applicationList[which]);
+                        invalidateEncryptionKeys();
                     }
                 });
                 // create and show the alert dialog
@@ -1171,6 +1185,88 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        /**
+         * section for encrypted standard files
+         */
+
+        fileStandardCreateEnc.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // create a new standard file
+                // get the input and sanity checks
+                clearOutputFields();
+                writeToUiAppend(output, "create an encrypted standard file");
+                // the number of files on an EV1 tag is limited to 32 (00..31), but we are using the limit for the old D40 tag with a limit of 15 files (00..14)
+                // this limit is hardcoded in the XML file for the fileId numberPicker
+
+                // this uses the numberPicker
+                byte fileIdByte = (byte) (npStandardFileId.getValue() & 0xFF);
+                // this is done with an EditText
+                //byte fileIdByte = Byte.parseByte(fileId.getText().toString());
+                int fileSizeInt = Integer.parseInt(fileStandardSize.getText().toString());
+                if (fileIdByte > (byte) 0x0f) {
+                    //writeToUiAppend(errorCode, "you entered a wrong file ID");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file ID", COLOR_RED);
+                    return;
+                }
+                if (fileSizeInt < 1) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you entered a wrong file size, 32 bytes allowed only", COLOR_RED);
+                    return;
+                }
+                byte[] responseData = new byte[2];
+                boolean result = createStandardFileEncrypted(output, fileIdByte, fileSizeInt, responseData);
+                writeToUiAppend(output, "result of createAStandardFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt);
+                //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "createAStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        fileStandardWriteEnc.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // write to a selected standard file in a selected application
+                clearOutputFields();
+                writeToUiAppend(output, "write to an encrypted standard file");
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                String dataToWrite = fileStandardData.getText().toString();
+                byte[] dataToWriteBytes = dataToWrite.getBytes(StandardCharsets.UTF_8);
+                // here we are using testdata
+                int fileSize = selectedFileSize;
+                writeToUiAppend(output, "As the selected file has a size of " + fileSize + " we generate the same length as test data");
+                dataToWriteBytes = Utils.generateTestData(fileSize);
+
+                if (TextUtils.isEmpty(dataToWrite)) {
+                    //writeToUiAppend(errorCode, "please enter some data to write");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "please enter some data to write", COLOR_RED);
+                    return;
+                }
+                writeToUiAppend(output, printData("testdata", dataToWriteBytes));
+
+                // check that a previous authentication has run so we do have a session key
+                if ((SESSION_KEY_DES == null) || (KEY_NUMBER_USED_FOR_AUTHENTICATION < 0)) {
+                    writeToUiAppend(output, "please run an authentication with a write access key first, aborted");
+                    return;
+                }
+
+                byte fileIdByte = Byte.parseByte(selectedFileId);
+
+                byte[] responseData = new byte[2];
+                //boolean result = writeToStandardFile(output, fileIdByte, dataToWrite.getBytes(StandardCharsets.UTF_8), responseData);
+                boolean result = writeToStandardFileEncrypted(output, fileIdByte, dataToWriteBytes, responseData);
+                //writeToUiAppend(output, "result of writeToStandardFile: " + result + " ID: " + fileIdByte + " data: " + dataToWrite);
+                writeToUiAppend(output, "result of writeToStandardFile: " + result + " to fileID: " + fileIdByte);
+                //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "writeToStandardFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
 
         /**
          * section for authentication
@@ -1181,8 +1277,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
                 clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
+                invalidateEncryptionKeys();
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 0
                 boolean result = authenticateApplicationDes(output, DES_KEY_D0_NUMBER, DES_KEY_D0_DEFAULT, true, responseData);
@@ -1202,8 +1297,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // authorization of keyNumber 1 (CAR) with DEFAULT KEY
                 clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
+                invalidateEncryptionKeys();
                 byte[] responseData = new byte[2];
                 byte keyId = (byte) 0x01; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
@@ -1223,8 +1317,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // authorization of keyNumber 3 (R) with DEFAULT KEY
                 clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
+                invalidateEncryptionKeys();
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, DES_KEY_D3_NUMBER, DES_DEFAULT_KEY, true, responseData);
@@ -1244,8 +1337,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // authorization of keyNumber 4 (W) with DEFAULT KEY
                 clearOutputFields();
-                SESSION_KEY_DES = new byte[8];
-                SESSION_KEY_TDES = new byte[16];
+                invalidateEncryptionKeys();
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, DES_KEY_D4_NUMBER, DES_DEFAULT_KEY, true, responseData);
@@ -1278,7 +1370,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
+                invalidateEncryptionKeys();
             }
         });
 
@@ -1298,7 +1390,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
+                invalidateEncryptionKeys();
             }
         });
 
@@ -1318,7 +1410,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "changeKeyDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-
+                invalidateEncryptionKeys();
             }
         });
 
@@ -1402,7 +1494,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // do DES auth
             //String getChallengeCommand = "901a0000010000";
             //String getChallengeCommand = "9084000000"; // IsoGetChallenge
-            byte[] getChallengeResponse = isoDep.transceive(wrapMessage((byte) 0x1a, new byte[]{(byte) (keyId & 0xFF)}));
+            byte[] apdu = wrapMessage((byte) 0x1a, new byte[]{(byte) (keyId & 0xFF)});
+            byte[] getChallengeResponse = adapter.sendSimple(apdu);
+            //byte[] getChallengeResponse = isoDep.transceive(wrapMessage((byte) 0x1a, new byte[]{(byte) (keyId & 0xFF)}));
             if (verbose)
                 writeToUiAppend(logTextView, printData("getChallengeResponse", getChallengeResponse));
             // cf5e0ee09862d90391af
@@ -1461,7 +1555,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
              * Sending the APDU containing the challenge answer.
              * It is expected to be return 10 bytes [rndA from the Card] + 9100
              */
-            byte[] challengeAnswerResponse = isoDep.transceive(challengeAnswerAPDU);
+            byte[] challengeAnswerResponse = adapter.sendSimple(challengeAnswerAPDU);
+            //byte[] challengeAnswerResponse = isoDep.transceive(challengeAnswerAPDU);
             // response = channel.transmit(new CommandAPDU(challengeAnswerAPDU));
             if (verbose)
                 writeToUiAppend(logTextView, printData("challengeAnswerResponse", challengeAnswerResponse));
@@ -1491,14 +1586,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0x00};
                 System.arraycopy(responseManual, 0, response, 0, 2);
                 // now generate the session key
-                SESSION_KEY_TDES = generateD40SessionKey(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
-                // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_DES only
-                SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
+                SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+                // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_TDES only
+                //SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
                 return true;
             } else {
                 writeToUiAppend(logTextView, "Authentication failed");
                 byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
                 System.arraycopy(responseManual, 0, response, 0, 2);
+                //SESSION_KEY_TDES = null;
+                SESSION_KEY_DES = null;
                 return false;
                 //System.err.println(" ### Authentication failed. ### ");
                 //log("rndA:" + toHexString(rndA) + ", rndA from Card: " + toHexString(rndAFromCard));
@@ -1516,17 +1613,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         return false;
     }
 
-    private static byte[] generateD40SessionKey(byte[] randA, byte[] randB) {
+    private static byte[] generateD40SessionKeyDes(byte[] randA, byte[] randB) {
         // this IS NOT described in the manual !!!
         /*
         RndA = 0000000000000000, RndB = A1A2A3A4A5A6A7A8
         sessionKey = 00000000A1A2A3A400000000A1A2A3A4 (16 byte
          */
-        byte[] skey = new byte[16];
+        byte[] skey = new byte[8];
         System.arraycopy(randA, 0, skey, 0, 4);
         System.arraycopy(randB, 0, skey, 4, 4);
-        System.arraycopy(randA, 0, skey, 8, 4);
-        System.arraycopy(randB, 0, skey, 12, 4);
         return skey;
     }
 
@@ -1677,7 +1772,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private byte[] readFromStandardFile(TextView logTextView, byte fileNumber, byte[] response) {
         // we read from a standard file within the selected application
-        // as the file length is fixed we are reading with a constant length of 32
 
         int numberOfBytes = selectedFileSettings.getFileSizeInt();
         int offsetBytes = 0; // read from the beginning
@@ -2150,6 +2244,284 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    /**
+     * section for encrypted standard file handling
+     */
+
+    private boolean createStandardFileEncrypted(TextView logTextView, int fileNumber, int fileSize, byte[] response) {
+        // we create a standard file within the selected application
+        byte createStandardFileCommand = (byte) 0xcd;
+
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] createStandardFileParameter = pb.createStandardFile(fileNumber, PayloadBuilder.CommunicationSetting.Encrypted, 1, 2, 3, 4, fileSize);
+
+        // CD | File No | Comms setting byte | Access rights (2 bytes) | File size (3 bytes)
+        byte commSettingsByte = 0; // plain communication without any encryption
+                /*
+                M0775031 DESFIRE
+                Plain Communication = 0;
+                Plain communication secured by DES/3DES MACing = 1;
+                Fully DES/3DES enciphered communication = 3;
+                 */
+        //byte[] accessRights = new byte[]{(byte) 0xee, (byte) 0xee}; // should mean plain/free access without any keys
+                /*
+                There are four different Access Rights (2 bytes for each file) stored for each file within
+                each application:
+                - Read Access
+                - Write Access
+                - Read&Write Access
+                - ChangeAccessRights
+                 */
+        // the application master key is key 0
+        // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
+        writeToUiAppend(logTextView, printData("createStandardFileParameter", createStandardFileParameter));
+        byte[] createStandardFileResponse = new byte[0];
+        byte[] apdu;
+        try {
+            apdu = wrapMessage(createStandardFileCommand, createStandardFileParameter);
+            createStandardFileResponse = adapter.sendSimple(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("createStandardFileResponse", createStandardFileResponse));
+        System.arraycopy(returnStatusBytes(createStandardFileResponse), 0, response, 0, 2);
+        if (checkResponse(createStandardFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // note: we don't need to commit any write on Standard Files
+    private boolean writeToStandardFileEncrypted(TextView logTextView, int fileNumber, byte[] data, byte[] response) {
+        // some sanity checks to avoid any issues
+        int fileSize = selectedFileSettings.getFileSizeInt();
+        if (fileNumber < (byte) 0x00) return false;
+        if (fileNumber > (byte) 0x0F) return false;
+        if ((data == null) || (data.length == 0)) return false;
+        if (data.length > fileSize) return false;
+
+        Log.d(TAG, printData("data", data));
+        // i'm encrypting the data only without any header
+        byte[] dataEncrypted = encryptDataDes(data, SESSION_KEY_DES);
+        Log.d(TAG, printData("dataEncrypted", dataEncrypted));
+        // write to file
+        byte writeStandardFileCommand = (byte) 0x3d;
+        int offsetBytes = 0;
+
+        PayloadBuilder pb = new PayloadBuilder();
+        //byte[] writeStandardFileParameter = pb.writeToStandardFile(fileNumber, data, offsetBytes);
+        byte[] writeStandardFileParameter = pb.writeToStandardFile(fileNumber, dataEncrypted, offsetBytes);
+        writeToUiAppend(logTextView, printData("writeStandardFileParameter", writeStandardFileParameter));
+
+        byte[] writeStandardFileResponse = new byte[0];
+        try {
+            // correct the parameter length
+            writeStandardFileParameter[4] = (byte) (data.length &0xff);
+            byte[] apdu = wrapMessage(writeStandardFileCommand, writeStandardFileParameter);
+            writeToUiAppend(logTextView, printData("plain apdu", apdu));
+
+            // correct the length of data
+            //apdu[4] = (byte) (6 + dataEncrypted.length);
+            //writeToUiAppend(logTextView, printData("plain apdu", apdu));
+            // apdu 18 is the length of data itself
+            //apdu[9] = (byte) (data.length &0xff);
+            //writeToUiAppend(logTextView, printData("plain apdu", apdu));
+
+            //byte[] apduShort = Arrays.copyOf(apdu, apdu.length - 1); // strip of the last 00
+            //writeToUiAppend(logTextView, printData("plain apdu short", apduShort));
+            // this is the point where the encryption and adding of crc's takes place
+            writeToUiAppend(logTextView, printData("SESSION_KEY_DES", SESSION_KEY_DES));
+            //byte[] encryptedApdu = preprocessEncipheredDes(apdu, 12, SESSION_KEY_DES);
+            //writeToUiAppend(logTextView, printData("encr. apdu", encryptedApdu));
+            //byte[] encryptedApduLong = new byte[encryptedApdu.length + 1];
+            //System.arraycopy(encryptedApdu, 0, encryptedApduLong, 0, encryptedApdu.length);
+            //writeToUiAppend(logTextView, printData("encr. apdu long ", encryptedApduLong));
+            writeStandardFileResponse = adapter.sendRequestChain(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("writeStandardFileResponse", writeStandardFileResponse));
+        System.arraycopy(returnStatusBytes(writeStandardFileResponse), 0, response, 0, 2);
+        if (checkResponse(writeStandardFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private byte[] encryptDataDes(byte[] data, byte[] desKey) {
+        final int blockSize = 8;
+        byte[] crc16 = CRC16.get(data);
+        Log.d(TAG, printData("DES key", desKey));
+        Log.d(TAG, printData("data", data));
+        Log.d(TAG, printData("CRC16", crc16));
+        int dataLength = data.length;
+        int crc16Length = crc16.length; // should be 2
+        int padding = 0;  // padding=0 if block length is adequate
+        //int lengthWithCrc =  dataLength + crc16Length;
+        if ((dataLength + crc16Length) % blockSize != 0)
+            padding = blockSize - (dataLength + crc16Length) % blockSize;
+        int ciphertextLength = dataLength + crc16Length + padding;
+        Log.d(TAG, "dataLength: " + dataLength + " CRC16Length: " + crc16Length + " padding: " + padding);
+        Log.d(TAG, "ciphertextLength: " + ciphertextLength);
+        byte[] dataWithCrc = new byte[ciphertextLength];
+        System.arraycopy(data, 0, dataWithCrc, 0, dataLength);
+        System.arraycopy(crc16, 0, dataWithCrc, dataLength, crc16Length);
+        Log.d(TAG, printData("dataWithCrc", dataWithCrc));
+        byte[] dataDecrpytionMode = decryptDes(desKey, dataWithCrc);
+        Log.d(TAG, printData("dataDecryptionMode", dataDecrpytionMode));
+        return dataDecrpytionMode;
+    }
+
+    // code taken from NFCjLib DESFireEV1.java but reduced to DES mode only
+    // warning: do not use for TDES or AES keys
+
+    // calculate CRC and append, encrypt, and update global IV
+    private byte[] preprocessEncipheredDes(byte[] apdu, int offset, byte[] skey) {
+        byte[] ciphertext = encryptApduDes(apdu, offset, skey);
+
+        byte[] ret = new byte[5 + offset + ciphertext.length + 1];
+        System.arraycopy(apdu, 0, ret, 0, 5 + offset);
+        System.arraycopy(ciphertext, 0, ret, 5 + offset, ciphertext.length);
+        ret[4] = (byte) (offset + ciphertext.length);
+
+        return ret;
+    }
+
+    /* Only data is encrypted. Headers are left out (e.g. keyNo for credit). */
+    private static byte[] encryptApduDes(byte[] apdu, int offset, byte[] sessionKey) {
+        int blockSize = 8;
+        int payloadLen = apdu.length - 6;
+        byte[] crc = null;
+        crc = calculateApduCRC16C(apdu, offset);
+
+        int padding = 0;  // padding=0 if block length is adequate
+        if ((payloadLen - offset + crc.length) % blockSize != 0)
+            padding = blockSize - (payloadLen - offset + crc.length) % blockSize;
+        int ciphertextLen = payloadLen - offset + crc.length + padding;
+        byte[] plaintext = new byte[ciphertextLen];
+        System.arraycopy(apdu, 5 + offset, plaintext, 0, payloadLen - offset);
+        System.arraycopy(crc, 0, plaintext, payloadLen - offset, crc.length);
+        return sendDes(sessionKey, plaintext);
+    }
+
+    private static byte[] sendDes(byte[] key, byte[] data) {
+      return decryptDes(key, data);
+    }
+
+    // CRC16 calculated only over data
+    private static byte[] calculateApduCRC16C(byte[] apdu, int offset) {
+        if (apdu.length == 5) {
+            return CRC16.get(new byte[0]);
+        } else {
+            return CRC16.get(apdu, 5 + offset, apdu.length - 5 - offset - 1);
+        }
+    }
+
+    // DES/3DES decryption: CBC send mode and CBC receive mode
+    // here fixed to SEND_MODE = decrypt
+    private static byte[] decryptDes(byte[] key, byte[] data) {
+
+        /* this method
+        plaintext before encryption length: 24 data: d400000000000000d4000000000000007f917f9100000000
+        ciphertext after encryption length: 24 data: 3b93de449348de6a16c92664a51d152d5d07194befeaa71d
+         */
+        /* method from DESFireEV1.java
+        plaintext before encryption: d400000000000000d4000000000000007f917f9100000000
+        ciphertext after encryption: 2c1ba72be0074ee529f8b450bfe42a465196116967b8272f
+         */
+
+        byte[] modifiedKey = new byte[24];
+        System.arraycopy(key, 0, modifiedKey, 16, 8);
+        System.arraycopy(key, 0, modifiedKey, 8, 8);
+        System.arraycopy(key, 0, modifiedKey, 0, key.length);
+
+        /* MF3ICD40, which only supports DES/3DES, has two cryptographic
+         * modes of operation (CBC): send mode and receive mode. In send mode,
+         * data is first XORed with the IV and then decrypted. In receive
+         * mode, data is first decrypted and then XORed with the IV. The PCD
+         * always decrypts. The initial IV, reset in all operations, is all zeros
+         * and the subsequent IVs are the last decrypted/plain block according with mode.
+         *
+         * MDF EV1 supports 3K3DES/AES and remains compatible with MF3ICD40.
+         */
+        byte[] ciphertext = new byte[data.length];
+        byte[] cipheredBlock = new byte[8];
+
+        // XOR w/ previous ciphered block --> decrypt
+        for (int i = 0; i < data.length; i += 8) {
+            for (int j = 0; j < 8; j++) {
+                data[i + j] ^= cipheredBlock[j];
+            }
+            cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
+            System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
+        }
+        return ciphertext;
+    }
+
+    private byte[] readFromStandardFileEncrypted(TextView logTextView, byte fileNumber, byte[] response) {
+        // we read from a standard file within the selected application
+
+        int numberOfBytes = selectedFileSettings.getFileSizeInt();
+        int offsetBytes = 0; // read from the beginning
+        //int numberOfBytes = 32;
+        byte readStandardFileCommand = (byte) 0xbd;
+        //byte[] offset = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00}; // no offset, read from the beginning
+        byte[] offset = Utils.intTo3ByteArrayInversed(offsetBytes);
+        byte[] length = Utils.intTo3ByteArrayInversed(numberOfBytes);
+        byte[] readStandardFileParameters = new byte[7];
+        readStandardFileParameters[0] = fileNumber;
+        System.arraycopy(offset, 0, readStandardFileParameters, 1, 3);
+        System.arraycopy(length, 0, readStandardFileParameters, 4, 3);
+        writeToUiAppend(logTextView, printData("readStandardFileParameters", readStandardFileParameters));
+        byte[] readStandardFileResponse = new byte[0];
+        try {
+            byte[] apdu = wrapMessage(readStandardFileCommand, readStandardFileParameters);
+            writeToUiAppend(logTextView, printData("send APDU", apdu));
+
+            //readStandardFileResponse = adapter.send(apdu);
+            byte[] readStandardFileResponse1st = adapter.sendRequestChain(apdu);
+            writeToUiAppend(logTextView, printData("readStandardFileResponse1st", readStandardFileResponse1st));
+            if (readStandardFileResponse1st == null) {
+                writeToUiAppend(logTextView, "the readStandardFile command failed, aborted");
+                byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+                System.arraycopy(responseManual, 0, response, 0, 2);
+                return null;
+            }
+            readStandardFileResponse = adapter.receiveResponseChain(readStandardFileResponse1st);
+            writeToUiAppend(logTextView, printData("readStandardFileResponse2nd", readStandardFileResponse));
+
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return null;
+        }
+        writeToUiAppend(logTextView, printData("readStandardFileResponse", readStandardFileResponse));
+        System.arraycopy(adapter.getFullCode(), 0, response, 0, 2);
+
+        // if the card responses more data than expected we truncate the data
+        int expectedResponse = numberOfBytes - offsetBytes;
+        if (readStandardFileResponse.length == expectedResponse) {
+            return readStandardFileResponse;
+        } else if (readStandardFileResponse.length > expectedResponse) {
+            // more data is provided - truncated
+            return Arrays.copyOf(readStandardFileResponse, expectedResponse);
+        } else {
+            // less data is provided - we return as much as possible
+            return readStandardFileResponse;
+        }
+    }
 
 
     /**
@@ -2794,6 +3166,14 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             fileSelected.setText("");
         });
         KEY_NUMBER_USED_FOR_AUTHENTICATION = -1;
+        SESSION_KEY_DES = null;
+        SESSION_KEY_TDES = null;
+    }
+
+    private void invalidateEncryptionKeys() {
+        KEY_NUMBER_USED_FOR_AUTHENTICATION = -1;
+        SESSION_KEY_DES = null;
+        SESSION_KEY_TDES = null;
     }
 
     /**

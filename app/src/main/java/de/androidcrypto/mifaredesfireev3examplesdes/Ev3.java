@@ -50,6 +50,7 @@ public class Ev3 {
             //case (byte) 0x: return " error";
             case (byte) 0xA0: return "A0 application not found error";
             case (byte) 0xAE: return "AE authentication error";
+            case (byte) 0xAF: return "AF Additional frame (more data to follow before final status code)";
             case (byte) 0xDE: return "DE duplicate error";
 
         }
