@@ -324,6 +324,30 @@
                         android:enabled="false"
                         android:text="list" />
 
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnGetFileSettings"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="8dp"
+                        android:layout_weight="1"
+                        android:text="file settings" />
+
+                    <Button
+                        android:id="@+id/btnListFilesxx"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="8dp"
+                        android:layout_weight="1"
+                        android:enabled="false"
+                        android:text="xx" />
+
                     <Button
                         android:id="@+id/btnDeleteFile"
                         android:layout_width="wrap_content"
@@ -392,12 +416,12 @@
                     android:orientation="horizontal">
 
                     <Button
-                        android:id="@+id/btnGetFileSettings"
+                        android:id="@+id/btnXXX3"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginRight="8dp"
                         android:layout_weight="1"
-                        android:text="fileSettings" />
+                        android:text="xxx" />
 
                     <Button
                         android:id="@+id/btnWriteStandardFileOld"

@@ -61,20 +61,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private byte[] selectedApplicationId = null;
 
     /**
-     * section for standard file handling
+     * section for files
      */
 
-    private LinearLayout llStandardFile;
-    private Button fileList, fileSelect, fileStandardCreate, fileStandardWrite, fileStandardRead;
-    private com.shawnlin.numberpicker.NumberPicker npStandardFileId;
-
+    private Button fileList, fileSelect, fileSettings;
     private com.google.android.material.textfield.TextInputEditText fileSelected;
-    private com.google.android.material.textfield.TextInputEditText fileStandardSize, fileStandardData;
+
     private String selectedFileId = "";
     private int selectedFileSize;
     private FileSettings selectedFileSettings;
 
-    private int selectedFileKeyRW, selectedFileKeyCar, selectedFileKeyR, selectedFileKeyW; // todo work on this
+    /**
+     * section for standard file handling
+     */
+
+    private LinearLayout llStandardFile;
+    private Button fileStandardCreate, fileStandardWrite, fileStandardRead;
+    private com.shawnlin.numberpicker.NumberPicker npStandardFileId;
+    private com.google.android.material.textfield.TextInputEditText fileStandardSize, fileStandardData;
 
     /**
      * section for value file handling
@@ -215,17 +219,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         numberOfKeys = findViewById(R.id.etNumberOfKeys);
         applicationId = findViewById(R.id.etApplicationId);
 
-        // standard file handling
-        llStandardFile = findViewById(R.id.llStandardFile);
+        // file handling
         fileList = findViewById(R.id.btnListFiles);
         fileSelect = findViewById(R.id.btnSelectFile);
+        fileSettings = findViewById(R.id.btnGetFileSettings);
+        fileSelected = findViewById(R.id.etSelectedFileId);
 
+        // standard file handling
+        llStandardFile = findViewById(R.id.llStandardFile);
         fileStandardCreate = findViewById(R.id.btnCreateStandardFile);
         fileStandardWrite = findViewById(R.id.btnWriteStandardFile);
         fileStandardRead = findViewById(R.id.btnReadStandardFile);
         npStandardFileId = findViewById(R.id.npStandardFileId);
-        fileSelected = findViewById(R.id.etSelectedFileId);
-
         fileStandardSize = findViewById(R.id.etFileStandardSize);
         fileStandardData = findViewById(R.id.etFileStandardData);
 
@@ -599,6 +604,22 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // create and show the alert dialog
                 AlertDialog dialog = builder.create();
                 dialog.show();
+            }
+        });
+
+        fileSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                clearOutputFields();
+                writeToUiAppend(output, "show the file settings of the selected file");
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                writeToUiAppend(output, "file settings of file " + selectedFileSettings.getFileNumberInt() + "\n" + selectedFileSettings.dump());
             }
         });
 
@@ -1052,6 +1073,98 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     //throw new RuntimeException(e);
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
                     writeToUiAppend(errorCode, "did you forget to authenticate with a write access key ?");
+                    e.printStackTrace();
+                    return;
+                }
+            }
+        });
+
+        fileRecordRead.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                clearOutputFields();
+                writeToUiAppend(output, "read from a record file");
+
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+
+                int fileIdInt = selectedFileSettings.getFileNumberInt();
+                int recordSize;
+                int currentRecords;
+                try {
+                    // check that it is a record file !
+                    // get the maximal length from getFileSettings
+                    // check that it is a record file !
+                    String fileTypeName = selectedFileSettings.getFileTypeName();
+                    writeToUiAppend(output, "file number " + fileIdInt + " is of type " + fileTypeName);
+                    boolean isLinearRecordFile = false;
+                    if (fileTypeName.equals(FileSettings.LINEAR_RECORD_FILE_TYPE)) {
+                        isLinearRecordFile = true;
+                        writeToUiAppend(output, "The selected file is of type Linear Record File");
+                    } else if (fileTypeName.equals(FileSettings.CYCLIC_RECORD_FILE_TYPE)) {
+                        isLinearRecordFile = false;
+                        writeToUiAppend(output, "The selected file is of type Cyclic Record File");
+                    } else {
+                        writeToUiAppend(output, "The selected file is not of type Linear or Cyclic Record but of type " + fileTypeName + ", aborted");
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "wrong file type", COLOR_RED);
+                        return;
+                    }
+
+                    // update the file settings data as they could have changed since last reading
+                    byte[] responseDataFileSettings = new byte[2];
+                    byte[] fileSettingsBytes = getFileSettings(output, selectedFileSettings.getFileNumber(), responseDataFileSettings);
+                    if ((fileSettingsBytes != null) && (fileSettingsBytes.length >= 7)) {
+                        selectedFileSettings = new FileSettings(selectedFileSettings.getFileNumber(), fileSettingsBytes);
+                    } else {
+                        // some error while retrieving the data
+                        writeToUiAppend(output, "could not read the file settings of the selected file, aborted");
+                        int colorFromErrorCode = Ev3.getColorFromErrorCode(responseDataFileSettings);
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "error on reading the fileSettings: " + Ev3.getErrorCode(responseDataFileSettings), colorFromErrorCode);
+                        writeToUiAppend(errorCode, "Did you forget to authenticate with a Read Access Key first ?");
+                        return;
+                    }
+
+                    recordSize = selectedFileSettings.getRecordSizeInt();
+                    currentRecords = selectedFileSettings.getRecordsExistingInt();
+                    int maxRecords = selectedFileSettings.getRecordsMaxInt();
+                    writeToUiAppend(output, "recordSize: " + recordSize + " currentRecords: " + currentRecords + " maxRecords: " + maxRecords);
+
+                    if (currentRecords == 0) {
+                        writeToUiAppend(output, "there are no records to read (empty file ?)");
+                        return;
+                    }
+
+                    byte[] readRecords; // will hold the complete data of all records
+                    byte[] responseData = new byte[2];
+                    //readRecords = desfire.readRecords((byte) (fileIdInt & 0xff), 0, 0);
+                    int firstRecordToRead = 0; // reading all records, starting with the oldest = record 0
+                    readRecords = readFromRecordFile(output, fileIdInt, firstRecordToRead, currentRecords, recordSize, responseData);
+                    if ((readRecords == null) || (readRecords.length == 0)) {
+                        writeToUiAppend(output, "there are no records to read (empty file ?)");
+                        return;
+                    }
+                    List<byte[]> readRecordList = divideArray(readRecords, recordSize);
+                    //readStandard = desfire.readData(STANDARD_FILE_NUMBER, 0, fileSize);
+                    int listSize = readRecordList.size();
+                    writeToUiAppend(output, "--------");
+                    for (int i = 0; i < listSize; i++) {
+                        byte[] record = readRecordList.get(i);
+                        writeToUiAppend(output, "record " + i + printData(" data", record));
+                        if (record != null) {
+                            writeToUiAppend(output, new String(record, StandardCharsets.UTF_8));
+                        }
+                        writeToUiAppend(output, "--------");
+                    }
+                    writeToUiAppend(output, "finished");
+                    writeToUiAppend(output, "");
+
+                } catch (Exception e) {
+                    //throw new RuntimeException(e);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
+                    writeToUiAppend(errorCode, "did you forget to authenticate with a read access key ?");
                     e.printStackTrace();
                     return;
                 }
@@ -1991,21 +2104,52 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    private byte[] readFromRecordFile(TextView logTextView, int fileNumber, int firstRecordToRead, int numberOfRecordsToRead, int recordSize, byte[] response) {
+        // we read from a record file within the selected application
+        byte readRecordFileCommand = (byte) 0xbb;
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] readRecordFileParameter = pb.readFromRecordFile(fileNumber, firstRecordToRead, numberOfRecordsToRead);
+        writeToUiAppend(logTextView, printData("readRecordFileParameter", readRecordFileParameter));
+        byte[] readRecordFileResponse = new byte[0];
+        byte[] apdu;
+        try {
+            apdu = wrapMessage(readRecordFileCommand, readRecordFileParameter);
+            writeToUiAppend(logTextView, printData("send APDU", apdu));
+            byte[] readRecordFileResponse1st = adapter.sendRequestChain(apdu);
+            writeToUiAppend(logTextView, printData("readRecordFileResponse1st", readRecordFileResponse1st));
+            if (readRecordFileResponse1st == null) {
+                writeToUiAppend(logTextView, "the readRecordFile command failed, aborted");
+                byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+                System.arraycopy(responseManual, 0, response, 0, 2);
+                return null;
+            }
+            readRecordFileResponse = adapter.receiveResponseChain(readRecordFileResponse1st);
+            writeToUiAppend(logTextView, printData("readRecordFileResponse2nd", readRecordFileResponse));
 
+        } catch (IOException e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return null;
+        }
 
-    /*
-     if (isLinearRecordFile) {
-                    payloadRecordFile = pb.createLinearRecordsFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
-                            1, 2, 3, 4, fileSizeInt, fileNumberOfRecordsInt);
-                    writeToUiAppend(output, printData("payloadCreateRecordFile", payloadRecordFile));
-                    success = desfire.createLinearRecordFile(payloadRecordFile);
-                } else {
-                    payloadRecordFile = pb.createCyclicRecordsFile(fileIdByte, PayloadBuilder.CommunicationSetting.Plain,
-                            1, 2, 3, 4, fileSizeInt, fileNumberOfRecordsInt);
-                    writeToUiAppend(output, printData("payloadCreateRecordFile", payloadRecordFile));
-                    success = desfire.createCyclicRecordFile(payloadRecordFile);
-                }
-     */
+        writeToUiAppend(logTextView, printData("readRecordFileResponse", readRecordFileResponse));
+        System.arraycopy(adapter.getFullCode(), 0, response, 0, 2);
+
+        // if the card responses more data than expected we truncate the data
+        int expectedResponseLength = numberOfRecordsToRead * recordSize;
+        if (readRecordFileResponse.length == expectedResponseLength) {
+            return readRecordFileResponse;
+        } else if (readRecordFileResponse.length > expectedResponseLength) {
+            // more data is provided - truncated
+            return Arrays.copyOf(readRecordFileResponse, expectedResponseLength);
+        } else {
+            // less data is provided - we return as much as possible
+            return readRecordFileResponse;
+        }
+    }
+
 
 
     /**

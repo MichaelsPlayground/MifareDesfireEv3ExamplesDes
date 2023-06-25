@@ -554,7 +554,7 @@ public class PayloadBuilder {
         return payload;
     }
 
-    public byte[] readFromCyclicRecordFile(int fileNumber, int recordNumberToRead, int numberOfRecords) {
+    public byte[] readFromRecordFile(int fileNumber, int recordNumberToRead, int numberOfRecords) {
         // sanity checks
         if ((fileNumber < 0) || (fileNumber > MAXIMUM_FILE_NUMBER)) return null;
         if ((recordNumberToRead < 0) || (recordNumberToRead > MAXIMUM_RECORD_NUMBER)) return null;
