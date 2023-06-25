@@ -38,6 +38,7 @@ import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
@@ -529,6 +530,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // select a file in a selected application
                 clearOutputFields();
+                // check that an application is already selected
+                if (selectedApplicationId == null) {
+                    writeToUiAppend(output, "you need to select an application first, aborted");
+                    return;
+                }
+
                 byte[] responseData = new byte[2];
                 List<Byte> fileIdList = getFileIdsList(output, responseData);
                 //writeToUiAppend(errorCode, "getFileIdsList: " + Ev3.getErrorCode(responseData));
@@ -550,7 +557,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     FileSettings fileSettings;
                     String fileTypeName = "unknown";
                     byte[] fileSettingsBytes = getFileSettings(output, fileId, responseData);
-                    if ((fileSettingsBytes != null) & (fileSettingsBytes.length >= 7)) {
+                    if ((fileSettingsBytes != null) && (fileSettingsBytes.length >= 7)) {
                         fileSettings = new FileSettings(fileId, fileSettingsBytes);
                         fileTypeName = fileSettings.getFileTypeName();
                     }
@@ -950,6 +957,104 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "create" + fileTypeString + "File Success: " +  Ev3.getErrorCode(responseData), colorFromErrorCode);
 
+            }
+        });
+
+        fileRecordWrite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // write to a selected record file in a selected application
+                clearOutputFields();
+                writeToUiAppend(output, "write to a record file");
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                String dataToWriteString = fileRecordData.getText().toString();
+                if (TextUtils.isEmpty(dataToWriteString)) {
+                    //writeToUiAppend(errorCode, "please enter some data to write");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "please enter some data to write", COLOR_RED);
+                    return;
+                }
+                int fileIdInt = selectedFileSettings.getFileNumberInt();
+                try {
+                    // check that it is a record file !
+                    // get the maximal length from getFileSettings
+                    // check that it is a record file !
+                    String fileTypeName = selectedFileSettings.getFileTypeName();
+                    writeToUiAppend(output, "file number " + fileIdInt + " is of type " + fileTypeName);
+                    boolean isLinearRecordFile = false;
+                    if (fileTypeName.equals(FileSettings.LINEAR_RECORD_FILE_TYPE)) {
+                        isLinearRecordFile = true;
+                        writeToUiAppend(output, "The selected file is of type Linear Record File");
+                    } else if (fileTypeName.equals(FileSettings.CYCLIC_RECORD_FILE_TYPE)) {
+                        isLinearRecordFile = false;
+                        writeToUiAppend(output, "The selected file is of type Cyclic Record File");
+                    } else {
+                        writeToUiAppend(output, "The selected file is not of type Linear or Cyclic Record but of type " + fileTypeName + ", aborted");
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "wrong file type", COLOR_RED);
+                        return;
+                    }
+
+                    // update the file settings data as they could have changed since last reading
+                    byte[] responseDataFileSettings = new byte[2];
+                    byte[] fileSettingsBytes = getFileSettings(output, selectedFileSettings.getFileNumber(), responseDataFileSettings);
+                    if ((fileSettingsBytes != null) && (fileSettingsBytes.length >= 7)) {
+                        selectedFileSettings = new FileSettings(selectedFileSettings.getFileNumber(), fileSettingsBytes);
+                    } else {
+                        // some error while retrieving the data
+                        writeToUiAppend(output, "could not read the file settings of the selected file, aborted");
+                        int colorFromErrorCode = Ev3.getColorFromErrorCode(responseDataFileSettings);
+                        writeToUiAppendBorderColor(errorCode, errorCodeLayout, "error on reading the fileSettings: " + Ev3.getErrorCode(responseDataFileSettings), colorFromErrorCode);
+                        writeToUiAppend(errorCode, "Did you forget to authenticate with a Read Access Key first ?");
+                        return;
+                    }
+
+                    int recordSize = selectedFileSettings.getRecordSizeInt();
+                    int currentRecords = selectedFileSettings.getRecordsExistingInt();
+                    int maxRecords = selectedFileSettings.getRecordsMaxInt();
+                    writeToUiAppend(output, "recordSize: " + recordSize + " currentRecords: " + currentRecords + " maxRecords: " + maxRecords);
+
+                   // todo check maximum records for linear records file - if maximum is reached stop any further writing
+
+                    // get a random payload with 32 bytes
+                    UUID uuid = UUID.randomUUID(); // this is 36 characters long
+                    //byte[] dataToWrite = Arrays.copyOf(uuid.toString().getBytes(StandardCharsets.UTF_8), 32); // this 32 bytes long
+                    byte[] dataToWrite = dataToWriteString.getBytes(StandardCharsets.UTF_8);
+                    byte[] fullDataToWrite = new byte[recordSize];
+                    if (dataToWrite.length > recordSize) {
+                        System.arraycopy(dataToWrite, 0, fullDataToWrite, 0, recordSize);
+                        writeToUiAppend(output, "your data is too long, shortened to length " + recordSize);
+                    } else {
+                        System.arraycopy(dataToWrite, 0, fullDataToWrite, 0, dataToWrite.length);
+                    }
+                    writeToUiAppend(output, printData("dataToWrite", fullDataToWrite));
+                    //fullDataToWrite = Utils.generateTestData(recordSize); // create random testdata
+
+                    byte[] responseData = new byte[2];
+                    //boolean result = writeToStandardFile(output, fileIdByte, dataToWrite.getBytes(StandardCharsets.UTF_8), responseData);
+                    boolean result = writeToRecordFile(output, selectedFileSettings.getFileNumber(), fullDataToWrite, isLinearRecordFile, responseData);
+                    //writeToUiAppend(output, "result of writeToStandardFile: " + result + " ID: " + fileIdByte + " data: " + dataToWrite);
+                    writeToUiAppend(output, "result of writeToRecordFile: " + result + " to fileID: " + selectedFileSettings.getFileNumber());
+                    //writeToUiAppend(errorCode, "writeToStandardFile: " + Ev3.getErrorCode(responseData));
+                    int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "writeToRecordFile: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+                    // dont forget to commit the change
+                    boolean commitSuccess = commitWriteToFile(output, responseData);
+                    writeToUiAppend(output, "result of commit: " + commitSuccess);
+                    colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "commit: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+
+                } catch (Exception e) {
+                    //throw new RuntimeException(e);
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "Exception: " + e.getMessage(), COLOR_RED);
+                    writeToUiAppend(errorCode, "did you forget to authenticate with a write access key ?");
+                    e.printStackTrace();
+                    return;
+                }
             }
         });
 
@@ -1853,7 +1958,38 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         }
     }
 
+    private boolean writeToRecordFile(TextView logTextView, byte fileNumber, byte[] data, boolean isLinearRecordFile, byte[] response) {
 
+        byte writeRecordFileCommand = (byte) 0x3b;
+        PayloadBuilder pb = new PayloadBuilder();
+        byte[] writeRecordFileParameter;
+        if (isLinearRecordFile) {
+            writeRecordFileParameter = pb.writeToLinearRecordFile(fileNumber, data);
+        } else {
+            // isCyclicRecordFile
+            writeRecordFileParameter = pb.writeToCyclicRecordFile(fileNumber, data);
+        }
+        writeToUiAppend(logTextView, printData("writeRecordFileParameter", writeRecordFileParameter));
+        byte[] apdu;
+        byte[] writeRecordFileResponse = new byte[0];
+        try {
+            apdu = wrapMessage(writeRecordFileCommand, writeRecordFileParameter);
+            writeRecordFileResponse = adapter.sendRequestChain(apdu);
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "transceive failed: " + e.getMessage());
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            return false;
+        }
+        writeToUiAppend(logTextView, printData("writeRecordFileResponse", writeRecordFileResponse));
+        System.arraycopy(returnStatusBytes(writeRecordFileResponse), 0, response, 0, 2);
+        if (checkResponse(writeRecordFileResponse)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
 
 

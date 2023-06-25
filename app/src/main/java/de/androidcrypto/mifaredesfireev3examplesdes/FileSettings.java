@@ -28,7 +28,9 @@ public class FileSettings {
     private byte[] recordSize; // 3 bytes beware: this data is LSB
     private int recordSizeInt;
     private byte[] recordsMax; // 3 bytes
+    private int recordsMaxInt;
     private byte[] recordsExisting; // 3 bytes
+    private int recordsExistingInt;
     private byte[] completeResponse; // the complete data returned on getFileSettings command
 
     public static final String STANDARD_FILE_TYPE = "Standard";
@@ -93,8 +95,10 @@ public class FileSettings {
             recordSizeInt = byteArrayLength3InversedToInt(recordSize);
             position += 3;
             recordsMax = Arrays.copyOfRange(completeResponse, position, position + 3);
+            recordsMaxInt = byteArrayLength3InversedToInt(recordsMax);
             position += 3;
             recordsExisting = Arrays.copyOfRange(completeResponse, position, position + 3);
+            recordsExistingInt = byteArrayLength3InversedToInt(recordsExisting);
             return;
         }
     }
@@ -105,7 +109,7 @@ public class FileSettings {
             case (byte) 0x01: return BACKUP_FILE_TYPE;
             case (byte) 0x02: return VALUE_FILE_TYPE;
             case (byte) 0x03: return LINEAR_RECORD_FILE_TYPE;
-            case (byte) 0x05: return CYCLIC_RECORD_FILE_TYPE;
+            case (byte) 0x04: return CYCLIC_RECORD_FILE_TYPE;
             default: return "Unknown";
         }
     }
@@ -131,9 +135,9 @@ public class FileSettings {
             sb.append("valueLimitedCreditAvailable: ").append(byteToHex(valueLimitedCreditAvailable)).append("\n");
         }
         if ((fileType == (byte) 0x03) | (fileType == (byte) 0x04)) {
-            sb.append("recordSize: ").append(byteArrayLength3InversedToInt(recordSize)).append("\n");
-            sb.append("recordsMax: ").append(byteArrayLength3InversedToInt(recordsMax)).append("\n");
-            sb.append("recordsExisting: ").append(byteArrayLength3InversedToInt(recordsExisting)).append("\n");
+            sb.append("recordSize: ").append(recordSizeInt).append("\n");
+            sb.append("recordsMax: ").append(recordsMaxInt).append("\n");
+            sb.append("recordsExisting: ").append(recordsExistingInt).append("\n");
         }
         return sb.toString();
     }
@@ -148,6 +152,14 @@ public class FileSettings {
 
     private static int byteArrayLength4InversedToInt(byte[] bytes) {
         return bytes[3] << 24 | (bytes[2] & 0xFF) << 16 | (bytes[1] & 0xFF) << 8 | (bytes[0] & 0xFF);
+    }
+
+    public byte getFileNumber() {
+        return fileNumber;
+    }
+
+    public int getFileNumberInt() {
+        return (int) fileNumber;
     }
 
     public String getFileTypeName() {
@@ -176,5 +188,17 @@ public class FileSettings {
 
     public int getFileSizeInt() {
         return fileSizeInt;
+    }
+
+    public int getRecordSizeInt() {
+        return recordSizeInt;
+    }
+
+    public int getRecordsMaxInt() {
+        return recordsMaxInt;
+    }
+
+    public int getRecordsExistingInt() {
+        return recordsExistingInt;
     }
 }
