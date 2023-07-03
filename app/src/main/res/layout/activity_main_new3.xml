@@ -340,13 +340,13 @@
                         android:text="file settings" />
 
                     <Button
-                        android:id="@+id/btnChangeFileSettings"
+                        android:id="@+id/btnListFilesxx"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="8dp"
                         android:layout_weight="1"
-                        android:enabled="true"
-                        android:text="chg file sett" />
+                        android:enabled="false"
+                        android:text="xx" />
 
                     <Button
                         android:id="@+id/btnDeleteFile"

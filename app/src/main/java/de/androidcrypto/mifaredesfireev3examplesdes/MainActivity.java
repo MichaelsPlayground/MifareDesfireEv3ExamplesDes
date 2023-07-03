@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * section for files
      */
 
-    private Button fileList, fileSelect, fileSettings;
+    private Button fileList, fileSelect, fileSettings, changeFileSettings;
     private com.google.android.material.textfield.TextInputEditText fileSelected;
 
     private String selectedFileId = "";
@@ -113,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      */
 
     private Button authKeyD0, authKeyD1, authKeyD2, authKeyD3, authKeyD4;
+    private Button authKeyD0C;
 
     /**
      * section for key handling
@@ -133,7 +134,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     private final byte[] DES_KEY_D2_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 2 is for change access keys
     private final byte[] DES_KEY_D3_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 3 is for read access
     private final byte[] DES_KEY_D4_DEFAULT = Utils.hexStringToByteArray("0000000000000000"); // key number 4 is for write access
-    private final byte[] DES_KEY_D0 = Utils.hexStringToByteArray("E000000000000000"); // key number 0 is the application master key
+    private final byte[] DES_KEY_D0 = Utils.hexStringToByteArray("D000000000000000"); // key number 0 is the application master key
     private final byte[] DES_KEY_D1 = Utils.hexStringToByteArray("E100000000000000"); // key number 1 is for read&write access keys
     private final byte[] DES_KEY_D2 = Utils.hexStringToByteArray("E200000000000000"); // key number 2 is for change access keys
     private final byte[] DES_KEY_D3 = Utils.hexStringToByteArray("E300000000000000"); // key number 3 is for read access
@@ -231,6 +232,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         fileList = findViewById(R.id.btnListFiles);
         fileSelect = findViewById(R.id.btnSelectFile);
         fileSettings = findViewById(R.id.btnGetFileSettings);
+        changeFileSettings = findViewById(R.id.btnChangeFileSettings);
         fileSelected = findViewById(R.id.etSelectedFileId);
 
         // standard file handling
@@ -272,7 +274,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         // authentication handling
         authKeyD0 = findViewById(R.id.btnAuthD0);
+        authKeyD0C = findViewById(R.id.btnAuthD0C);
         authKeyD1 = findViewById(R.id.btnAuthD1);
+        authKeyD2 = findViewById(R.id.btnAuthD2);
         authKeyD3 = findViewById(R.id.btnAuthD3);
         authKeyD4 = findViewById(R.id.btnAuthD4);
 
@@ -634,6 +638,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     return;
                 }
                 writeToUiAppend(output, "file settings of file " + selectedFileSettings.getFileNumberInt() + "\n" + selectedFileSettings.dump());
+            }
+        });
+
+        changeFileSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                clearOutputFields();
+                writeToUiAppend(output, "change the file settings of the selected file");
+                // this uses the pre selected file
+                if (TextUtils.isEmpty(selectedFileId)) {
+                    //writeToUiAppend(errorCode, "you need to select a file first");
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
+                    return;
+                }
+                boolean changeResult = changeTheFileSettings();
+                writeToUiAppend(output, "the changeFileSettings was " + changeResult);
+                //writeToUiAppend(output, "file settings of file " + selectedFileSettings.getFileNumberInt() + "\n" + selectedFileSettings.dump());
             }
         });
 
@@ -1292,6 +1314,46 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         });
 
+        authKeyD2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
+                clearOutputFields();
+                invalidateEncryptionKeys();
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
+                boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D2_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
+        authKeyD0C.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
+                clearOutputFields();
+                invalidateEncryptionKeys();
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
+                boolean result = authenticateApplicationDes(output, DES_KEY_D0_NUMBER, DES_KEY_D0, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D0_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            }
+        });
+
         authKeyD1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -1587,6 +1649,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 System.arraycopy(responseManual, 0, response, 0, 2);
                 // now generate the session key
                 SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+                SESSION_KEY_TDES = new byte[16];
+                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES,0 , 8);
+                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES,8 , 8);
+                writeToUiAppend(logTextView, printData("DES sessionKey", SESSION_KEY_DES));
                 // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_TDES only
                 //SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
                 return true;
@@ -1963,6 +2029,79 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         } else {
             return null;
         }
+    }
+
+    private boolean changeTheFileSettings() {
+        int selectedFileIdInt = Integer.parseInt(selectedFileId);
+        byte selectedFileIdByte = Byte.parseByte(selectedFileId);
+        Log.d(TAG, "changeTheFileSettings for selectedFileId " + selectedFileIdInt);
+        Log.d(TAG, printData("DES session key", SESSION_KEY_DES));
+
+        byte changeFileSettingsCommand = (byte) 0x5f;
+        // CD | File No | Comms setting byte | Access rights (2 bytes) | File size (3 bytes)
+        byte commSettingsByte = 0; // plain communication without any encryption
+                /*
+                M0775031 DESFIRE
+                Plain Communication = 0;
+                Plain communication secured by DES/3DES MACing = 1;
+                Fully DES/3DES enciphered communication = 3;
+                 */
+        //byte[] accessRights = new byte[]{(byte) 0xee, (byte) 0xee}; // should mean plain/free access without any keys
+                /*
+                There are four different Access Rights (2 bytes for each file) stored for each file within
+                each application:
+                - Read Access
+                - Write Access
+                - Read&Write Access
+                - ChangeAccessRights
+                 */
+        // the application master key is key 0
+        // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
+        byte accessRightsRwCar = (byte) 0x12; // Read&Write Access & ChangeAccessRights
+        //byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
+        byte accessRightsRW = (byte) 0x22; // Read Access & Write Access // read with key 2, write with key 2
+        // to calculate the crc16 over the setting bytes we need a 3 byte long array
+        byte[] bytesForCrc = new byte[3];
+        bytesForCrc[0] = commSettingsByte;
+        bytesForCrc[1] = accessRightsRwCar;
+        bytesForCrc[2] = accessRightsRW;
+        Log.d(TAG, printData("bytesForCrc", bytesForCrc));
+        byte[] crc16Value = CRC16.get(bytesForCrc);
+        Log.d(TAG, printData("crc16Value", crc16Value));
+        // create a 8 byte long array
+        byte[] bytesForDecryption = new byte[8];
+        System.arraycopy(bytesForCrc,0, bytesForDecryption, 0, 3);
+        System.arraycopy(crc16Value,0, bytesForDecryption, 3, 2);
+        Log.d(TAG, printData("bytesForDecryption", bytesForDecryption));
+        // generate 24 bytes long triple des key
+        byte[] tripleDES_SESSION_KEY = new byte[24];
+        System.arraycopy(SESSION_KEY_DES, 0, tripleDES_SESSION_KEY, 0, 8);
+        System.arraycopy(SESSION_KEY_DES, 0, tripleDES_SESSION_KEY, 8, 8);
+        System.arraycopy(SESSION_KEY_DES, 0, tripleDES_SESSION_KEY, 16, 8);
+        Log.d(TAG, printData("tripeDES Session Key", tripleDES_SESSION_KEY));
+        byte[] IV_DES = new byte[8];
+        Log.d(TAG, printData("IV_DES", IV_DES));
+        byte[] decryptedData = TripleDES.decrypt(IV_DES, tripleDES_SESSION_KEY, bytesForDecryption);
+        Log.d(TAG, printData("decryptedData", decryptedData));
+        // the parameter for wrapping
+        byte[] parameter = new byte[9];
+        parameter[0] = selectedFileIdByte;
+        System.arraycopy(decryptedData, 0, parameter, 1, 8);
+        Log.d(TAG, printData("parameter", parameter));
+        byte[] wrappedCommand;
+        byte[] response;
+        try {
+            wrappedCommand = wrapMessage(changeFileSettingsCommand, parameter);
+            Log.d(TAG, printData("wrappedCommand", wrappedCommand));
+            response = isoDep.transceive(wrappedCommand);
+            Log.d(TAG, printData("response", response));
+        } catch (IOException e) {
+            writeToUiAppend(output, "IOException: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+
+        return false;
     }
 
     /**
