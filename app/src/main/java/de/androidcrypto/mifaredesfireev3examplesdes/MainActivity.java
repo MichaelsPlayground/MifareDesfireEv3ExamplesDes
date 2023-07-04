@@ -1298,7 +1298,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
          * section for authentication
          */
 
-        authKeyD0.setOnClickListener(new View.OnClickListener() {
+/*
+        authKeyD0Old.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
@@ -1317,27 +1318,30 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
             }
         });
+*/
 
-        authKeyD2.setOnClickListener(new View.OnClickListener() {
+        authKeyD0.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
                 clearOutputFields();
+                String logString = "authKey 0";
+                writeToUiAppend(output, logString);
                 invalidateEncryptionKeys();
                 try {
-                    boolean authResult = authenticate(DES_KEY_D2_DEFAULT, DES_KEY_D2_NUMBER);
+                    boolean authResult = authenticateDesLegacy(DES_KEY_D0_DEFAULT, DES_KEY_D0_NUMBER);
                     writeToUiAppend(output, "authResult: " + authResult);
                 } catch (IOException e) {
                     writeToUiAppend(errorCode, "IOException " + e.getMessage());
                     throw new RuntimeException(e);
                 }
 
-
                 /*
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 0
-                boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
-                writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
+                //boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
+                boolean result = authenticateApplicationDes0A(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes0a: " + result);
                 KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D2_NUMBER;
                 writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
                 writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
@@ -1345,7 +1349,40 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-            */
+                */
+            }
+        });
+
+        authKeyD2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
+                clearOutputFields();
+                String logString = "authKey 2";
+                writeToUiAppend(output, logString);
+                invalidateEncryptionKeys();
+                try {
+                    boolean authResult = authenticateDesLegacy(DES_KEY_D2_DEFAULT, DES_KEY_D2_NUMBER);
+                    writeToUiAppend(output, "authResult: " + authResult);
+                } catch (IOException e) {
+                    writeToUiAppend(errorCode, "IOException " + e.getMessage());
+                    throw new RuntimeException(e);
+                }
+
+                /*
+                byte[] responseData = new byte[2];
+                //byte keyId = (byte) 0x01; // we authenticate with keyId 0
+                //boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
+                boolean result = authenticateApplicationDes0A(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
+                writeToUiAppend(output, "result of authenticateApplicationDes0a: " + result);
+                KEY_NUMBER_USED_FOR_AUTHENTICATION = DES_KEY_D2_NUMBER;
+                writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
+                writeToUiAppend(output, printData("SESSION_KEY_DES ", SESSION_KEY_DES));
+                writeToUiAppend(output, printData("SESSION_KEY_TDES", SESSION_KEY_TDES));
+                //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
+                int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+                */
             }
         });
 
@@ -1439,10 +1476,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             public void onClick(View view) {
                 // this method will change the key number 2 (read access) from default to D200...
                 clearOutputFields();
+                String logString = "changeKey 2 from DEFAULT to CHANGED";
+                writeToUiAppend(output, logString);
                 byte[] responseData = new byte[2];
                 byte KEY_NUMBER_TO_CHANGE = 2;
 
-                boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_DEFAULT_KEY, DES_KEY_D2, responseData);
+                boolean result = changeKeyDes(output, KEY_NUMBER_TO_CHANGE, DES_KEY_D2_DEFAULT, DES_KEY_D2, responseData);
                 writeToUiAppend(output, "result of changeKeyDes: " + result);
                 //writeToUiAppend(errorCode, "createAnApplication: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
@@ -1570,6 +1609,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             Log.d(TAG, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
             writeToUiAppend(logTextView, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
             // do DES auth
+
+            setKeyVersion(key, 0, key.length, (byte) 0x00);
+
             //String getChallengeCommand = "901a0000010000";
             //String getChallengeCommand = "9084000000"; // IsoGetChallenge
             byte[] apdu = wrapMessage((byte) 0x1a, new byte[]{(byte) (keyId & 0xFF)});
@@ -1664,7 +1706,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0x00};
                 System.arraycopy(responseManual, 0, response, 0, 2);
                 // now generate the session key
-                SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+                //SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+                SESSION_KEY_DES = generateSessionKey(rndA, rndB);
                 SESSION_KEY_TDES = new byte[16];
                 System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 0, 8);
                 System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 8, 8);
@@ -1684,6 +1727,99 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
             //writeToUiAppend(logTextView, "********** AUTH RESULT END **********");
             //return false;
+        } catch (Exception e) {
+            //throw new RuntimeException(e);
+            writeToUiAppend(logTextView, "authenticateApplicationDes transceive failed: " + e.getMessage());
+            writeToUiAppend(logTextView, "authenticateApplicationDes transceive failed: " + Arrays.toString(e.getStackTrace()));
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0xFF};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+        }
+        //System.arraycopy(createApplicationResponse, 0, response, 0, createApplicationResponse.length);
+        return false;
+    }
+
+    // if verbose = true all steps are printed out
+    private boolean authenticateApplicationDes0A(TextView logTextView, byte keyId, byte[] key, boolean verbose, byte[] response) {
+        try {
+            Log.d(TAG, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
+            writeToUiAppend(logTextView, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
+            // do DES auth
+
+            setKeyVersion(key, 0, key.length, (byte) 0x00);
+
+            // Authenticate Part 1 get encrypted rndB from PICC and decrypt it with CAR key
+            byte authDes0aCommand = (byte) 0x0a;
+
+            byte[] apdu = wrapMessage(authDes0aCommand, new byte[]{(byte) (keyId & 0xFF)});
+            byte[] getChallengeResponse = adapter.sendSimple(apdu);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("getChallengeResponse", getChallengeResponse));
+            byte[] challengeData = Arrays.copyOf(getChallengeResponse, getChallengeResponse.length - 2);
+            // Decrypt to find RndB. TripleDES is used rather than AES, so the blocks are 8 bytes in size.
+            byte[] iv = new byte[8];
+            writeToUiAppend(output, printData("iv", iv));
+            byte[] rndB = Ev3.decrypt(challengeData, key, iv);
+            if (verbose) writeToUiAppend(logTextView, printData("rndB", rndB));
+
+            // Authenticate Part 2 generate random rndA and send it together with rndB to PICC
+            byte[] rndA = Ev3.getRndADes();
+            if (verbose) writeToUiAppend(logTextView, printData("rndA", rndA));
+            // Rotate left the rndB byte[] leftRotatedRndB = rotateLeft(rndB);
+            byte[] leftRotatedRndB = Ev3.rotateLeft(rndB);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("leftRotatedRndB", leftRotatedRndB));
+            byte[] rndA_rndB = Ev3.concatenate(rndA, leftRotatedRndB);
+            if (verbose) writeToUiAppend(logTextView, printData("rndA_rndB", rndA_rndB));
+            // get the IV from old challengeData
+            iv = challengeData.clone();
+            writeToUiAppend(output, printData("iv", iv));
+            byte[] challengeAnswer = Ev3.encrypt(rndA_rndB, key, iv);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("challengeAnswer", challengeAnswer));
+            // encrypt rndA_rndB
+            byte[] encryptedRndA_RndB = Ev3.encrypt(rndA_rndB, key, iv);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("challengeAnswer", challengeAnswer));
+            byte moreDataCommand = (byte) 0xaf;
+            byte[] apdu2 = wrapMessage(moreDataCommand, encryptedRndA_RndB);
+            /*
+             * Sending the APDU containing the challenge answer.
+             * It is expected to be return 10 bytes [rndA from the Card] + 9100
+             */
+            byte[] getChallenge2Response = adapter.sendSimple(apdu2);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("getChallenge2Response", getChallenge2Response));
+            byte[] challenge2Data = Arrays.copyOf(getChallenge2Response, getChallenge2Response.length - 2);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("challenge2Data", challenge2Data));
+            // Decrypt the rnd received from the Card.byte[] rotatedRndAFromCard = decrypt(encryptedRndAFromCard, defaultDESKey, IV);
+            //byte[] rotatedRndAFromCard = decrypt(encryptedRndAFromCard, defaultDESKey, IV);
+            byte[] rotatedRndAFromCard = Ev3.decrypt(challenge2Data, key, iv);
+            if (verbose)
+                writeToUiAppend(logTextView, printData("rotatedRndAFromCard", rotatedRndAFromCard));
+
+            /*
+            // As the card rotated left the rndA,// we shall un-rotate the bytes in order to get compare it to our original rndA.byte[] rndAFromCard = rotateRight(rotatedRndAFromCard);
+            byte[] rndAFromCard = Ev3.rotateRight(rotatedRndAFromCard);
+            // todo get a new IV after ?? step
+            if (verbose) writeToUiAppend(logTextView, printData("rndAFromCard", rndAFromCard));
+            writeToUiAppend(logTextView, "********** AUTH RESULT **********");
+            */
+
+            // get the session key
+            byte[] responseManual = new byte[]{(byte) 0x91, (byte) 0x00};
+            System.arraycopy(responseManual, 0, response, 0, 2);
+            // now generate the session key
+            //SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
+            SESSION_KEY_DES = generateSessionKey(rndA, rndB);
+            SESSION_KEY_TDES = new byte[16];
+            System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 0, 8);
+            System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 8, 8);
+            writeToUiAppend(logTextView, printData("DES sessionKey", SESSION_KEY_DES));
+            writeToUiAppend(logTextView, printData("TDES sessionKey", SESSION_KEY_TDES));
+            // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_TDES only
+            //SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
+            return true;
         } catch (Exception e) {
             //throw new RuntimeException(e);
             writeToUiAppend(logTextView, "authenticateApplicationDes transceive failed: " + e.getMessage());
@@ -1718,8 +1854,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
      * @throws IOException NOTE: this code is for KeyType DES only
      * @return true for success
      */
-    public boolean authenticate(byte[] key, byte keyNo) throws IOException {
+    private boolean authenticateDesLegacy(byte[] key, byte keyNo) throws IOException {
         setKeyVersion(key, 0, key.length, (byte) 0x00);
+        byte authenticateDesLegacyCommand = (byte) 0x0a;
         final byte[] iv0 = new byte[8];
         byte[] apdu;
         byte[] responseAPDU;
@@ -1727,7 +1864,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // 1st message exchange
         apdu = new byte[7];
         apdu[0] = (byte) 0x90;
-        apdu[1] = (byte) (0x0A);
+        apdu[1] = authenticateDesLegacyCommand;
         apdu[4] = 0x01;
         apdu[5] = keyNo;
         //responseAPDU = transmit(apdu);
@@ -1736,7 +1873,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // we did not test here for "AF" as response
         byte[] responseData = Arrays.copyOf(responseAPDU, responseAPDU.length - 2);
         // step 3
-        byte[] randB = recv(key, responseData, iv0);
+        //byte[] randB = recv(key, responseData, iv0);
+        byte[] randB = decrypt(key, responseData, DESMode.RECEIVE_MODE);
+
         if (randB == null)
             return false;
         byte[] randBr = rotateLeft(randB);
@@ -1751,14 +1890,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         System.arraycopy(randBr, 0, plaintext, randA.length, randBr.length);
         byte[] iv1 = Arrays.copyOfRange(responseData,
                 responseData.length - iv0.length, responseData.length);
-        byte[] ciphertext = send(key, plaintext, iv1);
+        //byte[] ciphertext = send(key, plaintext, iv1);
+        byte[] ciphertext = decrypt(key, plaintext, DESMode.SEND_MODE);
         if (ciphertext == null)
             return false;
 
         // 2nd message exchange
+        byte moreDataCommand = (byte) 0xaf;
         apdu = new byte[5 + ciphertext.length + 1];
         apdu[0] = (byte) 0x90;
-        apdu[1] = (byte) 0xAF;
+        apdu[1] = (byte) moreDataCommand;
         apdu[4] = (byte) ciphertext.length;
         System.arraycopy(ciphertext, 0, apdu, 5, ciphertext.length);
         //responseAPDU = transmit(apdu);
@@ -1766,11 +1907,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         Log.d(TAG, "authenticate " + printData("responseAPDU", responseAPDU));
         // we did not test here for "AF" as response
         responseData = Arrays.copyOf(responseAPDU, responseAPDU.length - 2);
-
+        if (responseData == null) {
+            Log.e(TAG, "responseData is NULL, authentication aborted. \nDid you authenticate with a wrong key ?");
+            writeToUiAppendBorderColor(errorCode, errorCodeLayout, "responseData is NULL, authentication aborted. \nDid you authenticate with a wrong key ?", COLOR_RED);
+            return false;
+        }
+        Log.d(TAG, printData("responseData", responseData));
+        Log.d(TAG, printData("key", key));
         // step 5
         byte[] iv2 = Arrays.copyOfRange(ciphertext,
                 ciphertext.length - iv0.length, ciphertext.length);
-        byte[] randAr = recv(key, responseData, iv2);
+        //byte[] randAr = recv(key, responseData, iv2);
+        byte[] randAr = decrypt(key, responseData, DESMode.RECEIVE_MODE);
         if (randAr == null)
             return false;
         byte[] randAr2 = rotateLeft(randA);
@@ -1785,15 +1933,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         Log.d(TAG, "The skey     is " + printData("", skey));
         SESSION_KEY_DES = skey.clone();
         writeToUiAppend(output, printData("DES sessionKey", SESSION_KEY_DES));
+        SESSION_KEY_TDES = new byte[16];
+        System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 0, 8);
+        System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 8, 8);
+        writeToUiAppend(output, printData("TDES sessionKey", SESSION_KEY_TDES));
         Log.d(TAG, "IV: " + printData("iv0", iv0));
         writeToUiAppend(output, printData("IV", iv0));
         return true;
-    }
-
-    // Receiving data that needs decryption.
-    // this is using DES as KeyType only
-    private static byte[] recv(byte[] key, byte[] data, byte[] iv) {
-        return decrypt(key, data, DESMode.RECEIVE_MODE);
     }
 
     // IV sent is the global one but it is better to be explicit about it: can be null for DES/3DES
@@ -2270,8 +2416,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // the application master key is key 0
         // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
         byte accessRightsRwCar = (byte) 0x12; // Read&Write Access & ChangeAccessRights
-        //byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
-        byte accessRightsRW = (byte) 0x22; // Read Access & Write Access // read with key 2, write with key 2
+        byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
+        //byte accessRightsRW = (byte) 0x22; // Read Access & Write Access // read with key 2, write with key 2
         // to calculate the crc16 over the setting bytes we need a 3 byte long array
         byte[] bytesForCrc = new byte[3];
         bytesForCrc[0] = commSettingsByte;
