@@ -40,6 +40,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
     private static final String TAG = MainActivity.class.getName();
@@ -1012,7 +1016,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 writeToUiAppend(output, "result of createARecordFile: " + result + " ID: " + fileIdByte + " size: " + fileSizeInt + " nbr of records: " + fileNumberOfRecordsInt);
                 //writeToUiAppend(errorCode, "createAStandardFile: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
-                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "create" + fileTypeString + "File Success: " +  Ev3.getErrorCode(responseData), colorFromErrorCode);
+                writeToUiAppendBorderColor(errorCode, errorCodeLayout, "create" + fileTypeString + "File Success: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
 
             }
         });
@@ -1074,7 +1078,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     int maxRecords = selectedFileSettings.getRecordsMaxInt();
                     writeToUiAppend(output, "recordSize: " + recordSize + " currentRecords: " + currentRecords + " maxRecords: " + maxRecords);
 
-                   // todo check maximum records for linear records file - if maximum is reached stop any further writing
+                    // todo check maximum records for linear records file - if maximum is reached stop any further writing
 
                     // get a random payload with 32 bytes
                     UUID uuid = UUID.randomUUID(); // this is 36 characters long
@@ -1320,6 +1324,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // authorization of keyNumber 0 (Application Master Key) with DEFAULT KEY
                 clearOutputFields();
                 invalidateEncryptionKeys();
+                try {
+                    boolean authResult = authenticate(DES_KEY_D2_DEFAULT, DES_KEY_D2_NUMBER);
+                    writeToUiAppend(output, "authResult: " + authResult);
+                } catch (IOException e) {
+                    writeToUiAppend(errorCode, "IOException " + e.getMessage());
+                    throw new RuntimeException(e);
+                }
+
+
+                /*
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 0
                 boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
@@ -1331,6 +1345,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
+            */
             }
         });
 
@@ -1552,6 +1567,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     // if verbose = true all steps are printed out
     private boolean authenticateApplicationDes(TextView logTextView, byte keyId, byte[] key, boolean verbose, byte[] response) {
         try {
+            Log.d(TAG, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
             writeToUiAppend(logTextView, "authenticateApplicationDes for keyId " + keyId + " and key " + Utils.bytesToHex(key));
             // do DES auth
             //String getChallengeCommand = "901a0000010000";
@@ -1650,8 +1666,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // now generate the session key
                 SESSION_KEY_DES = generateD40SessionKeyDes(rndA, rndB); // this is a 16 bytes long key, but for D40 encryption (DES) we need 8 bytes only
                 SESSION_KEY_TDES = new byte[16];
-                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES,0 , 8);
-                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES,8 , 8);
+                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 0, 8);
+                System.arraycopy(SESSION_KEY_DES, 0, SESSION_KEY_TDES, 8, 8);
                 writeToUiAppend(logTextView, printData("DES sessionKey", SESSION_KEY_DES));
                 // as it is a single DES cryptography I'm using the first part of the SESSION_KEY_TDES only
                 //SESSION_KEY_DES = Arrays.copyOf(SESSION_KEY_TDES, 8);
@@ -1686,6 +1702,202 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         sessionKey = 00000000A1A2A3A400000000A1A2A3A4 (16 byte
          */
         byte[] skey = new byte[8];
+        System.arraycopy(randA, 0, skey, 0, 4);
+        System.arraycopy(randB, 0, skey, 4, 4);
+        return skey;
+    }
+
+    // code taken from DESFireEV1.java
+
+    /**
+     * Mutual authentication between PCD and PICC.
+     *
+     * @param key   the secret key (8 bytes for DES, 16 bytes for 3DES/AES and
+     *              24 bytes for 3K3DES)
+     * @param keyNo the key number
+     * @throws IOException NOTE: this code is for KeyType DES only
+     * @return true for success
+     */
+    public boolean authenticate(byte[] key, byte keyNo) throws IOException {
+        setKeyVersion(key, 0, key.length, (byte) 0x00);
+        final byte[] iv0 = new byte[8];
+        byte[] apdu;
+        byte[] responseAPDU;
+
+        // 1st message exchange
+        apdu = new byte[7];
+        apdu[0] = (byte) 0x90;
+        apdu[1] = (byte) (0x0A);
+        apdu[4] = 0x01;
+        apdu[5] = keyNo;
+        //responseAPDU = transmit(apdu);
+        responseAPDU = adapter.sendSimple(apdu);
+        Log.d(TAG, "authenticate " + printData("responseAPDU", responseAPDU));
+        // we did not test here for "AF" as response
+        byte[] responseData = Arrays.copyOf(responseAPDU, responseAPDU.length - 2);
+        // step 3
+        byte[] randB = recv(key, responseData, iv0);
+        if (randB == null)
+            return false;
+        byte[] randBr = rotateLeft(randB);
+        byte[] randA = new byte[randB.length];
+
+        //fillRandom(randA);
+        randA = Ev3.getRndADes();
+
+        // step 3: encryption
+        byte[] plaintext = new byte[randA.length + randBr.length];
+        System.arraycopy(randA, 0, plaintext, 0, randA.length);
+        System.arraycopy(randBr, 0, plaintext, randA.length, randBr.length);
+        byte[] iv1 = Arrays.copyOfRange(responseData,
+                responseData.length - iv0.length, responseData.length);
+        byte[] ciphertext = send(key, plaintext, iv1);
+        if (ciphertext == null)
+            return false;
+
+        // 2nd message exchange
+        apdu = new byte[5 + ciphertext.length + 1];
+        apdu[0] = (byte) 0x90;
+        apdu[1] = (byte) 0xAF;
+        apdu[4] = (byte) ciphertext.length;
+        System.arraycopy(ciphertext, 0, apdu, 5, ciphertext.length);
+        //responseAPDU = transmit(apdu);
+        responseAPDU = adapter.sendSimple(apdu);
+        Log.d(TAG, "authenticate " + printData("responseAPDU", responseAPDU));
+        // we did not test here for "AF" as response
+        responseData = Arrays.copyOf(responseAPDU, responseAPDU.length - 2);
+
+        // step 5
+        byte[] iv2 = Arrays.copyOfRange(ciphertext,
+                ciphertext.length - iv0.length, ciphertext.length);
+        byte[] randAr = recv(key, responseData, iv2);
+        if (randAr == null)
+            return false;
+        byte[] randAr2 = rotateLeft(randA);
+        for (int i = 0; i < randAr2.length; i++)
+            if (randAr[i] != randAr2[i])
+                return false;
+
+        // step 6
+        byte[] skey = generateSessionKey(randA, randB);
+        Log.d(TAG, "The random A is " + printData("", randA));
+        Log.d(TAG, "The random B is " + printData("", randB));
+        Log.d(TAG, "The skey     is " + printData("", skey));
+        SESSION_KEY_DES = skey.clone();
+        writeToUiAppend(output, printData("DES sessionKey", SESSION_KEY_DES));
+        Log.d(TAG, "IV: " + printData("iv0", iv0));
+        writeToUiAppend(output, printData("IV", iv0));
+        return true;
+    }
+
+    // Receiving data that needs decryption.
+    // this is using DES as KeyType only
+    private static byte[] recv(byte[] key, byte[] data, byte[] iv) {
+        return decrypt(key, data, DESMode.RECEIVE_MODE);
+    }
+
+    // IV sent is the global one but it is better to be explicit about it: can be null for DES/3DES
+    // if IV is null, then it is set to zeros
+    // Sending data that needs encryption.
+    // NOTE: KeyType DES only
+    private static byte[] send(byte[] key, byte[] data, byte[] iv) {
+        return decrypt(key, data, DESMode.SEND_MODE);
+    }
+
+    /**
+     * DES/3DES mode of operation.
+     */
+    private enum DESMode {
+        SEND_MODE,
+        RECEIVE_MODE;
+    }
+
+    // DES/3DES decryption: CBC send mode and CBC receive mode
+    private static byte[] decrypt(byte[] key, byte[] data, DESMode mode) {
+        byte[] modifiedKey = new byte[24];
+        System.arraycopy(key, 0, modifiedKey, 16, 8);
+        System.arraycopy(key, 0, modifiedKey, 8, 8);
+        System.arraycopy(key, 0, modifiedKey, 0, key.length);
+
+        /* MF3ICD40, which only supports DES/3DES, has two cryptographic
+         * modes of operation (CBC): send mode and receive mode. In send mode,
+         * data is first XORed with the IV and then decrypted. In receive
+         * mode, data is first decrypted and then XORed with the IV. The PCD
+         * always decrypts. The initial IV, reset in all operations, is all zeros
+         * and the subsequent IVs are the last decrypted/plain block according with mode.
+         *
+         * MDF EV1 supports 3K3DES/AES and remains compatible with MF3ICD40.
+         */
+        byte[] ciphertext = new byte[data.length];
+        byte[] cipheredBlock = new byte[8];
+
+        switch (mode) {
+            case SEND_MODE:
+                // XOR w/ previous ciphered block --> decrypt
+                for (int i = 0; i < data.length; i += 8) {
+                    for (int j = 0; j < 8; j++) {
+                        data[i + j] ^= cipheredBlock[j];
+                    }
+                    cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
+                    System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
+                }
+                break;
+            case RECEIVE_MODE:
+                // decrypt --> XOR w/ previous plaintext block
+                cipheredBlock = TripleDES.decrypt(modifiedKey, data, 0, 8);
+                // implicitly XORed w/ IV all zeros
+                System.arraycopy(cipheredBlock, 0, ciphertext, 0, 8);
+                for (int i = 8; i < data.length; i += 8) {
+                    cipheredBlock = TripleDES.decrypt(modifiedKey, data, i, 8);
+                    for (int j = 0; j < 8; j++) {
+                        cipheredBlock[j] ^= data[i + j - 8];
+                    }
+                    System.arraycopy(cipheredBlock, 0, ciphertext, i, 8);
+                }
+                break;
+            default:
+                Log.e(TAG, "Wrong way (decrypt)");
+                return null;
+        }
+        return ciphertext;
+    }
+
+    private static byte[] decrypt(byte[] data, byte[] key, byte[] IV) throws Exception {
+        Cipher cipher = getCipher(Cipher.DECRYPT_MODE, key, IV);
+        return cipher.doFinal(data);
+    }
+
+    private static Cipher getCipher(int mode, byte[] key, byte[] IV) throws Exception {
+        Cipher cipher = Cipher.getInstance("DES/CBC/NoPadding");
+        SecretKeySpec keySpec = new SecretKeySpec(key, "DES");
+        IvParameterSpec algorithmParamSpec = new IvParameterSpec(IV);
+        cipher.init(mode, keySpec, algorithmParamSpec);
+        return cipher;
+    }
+
+    // rotate the array one byte to the left
+    private static byte[] rotateLeft(byte[] a) {
+        byte[] ret = new byte[a.length];
+
+        System.arraycopy(a, 1, ret, 0, a.length - 1);
+        ret[a.length - 1] = a[0];
+
+        return ret;
+    }
+
+    /**
+     * Generate the session key using the random A generated by the PICC and
+     * the random B generated by the PCD.
+     *
+     * @param randA the random number A
+     * @param randB the random number B
+     * @return the session key
+     * <p>
+     * NOTE: this is using KeyType DES only
+     */
+    private static byte[] generateSessionKey(byte[] randA, byte[] randB) {
+        byte[] skey = null;
+        skey = new byte[8];
         System.arraycopy(randA, 0, skey, 0, 4);
         System.arraycopy(randB, 0, skey, 4, 4);
         return skey;
@@ -2070,8 +2282,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         Log.d(TAG, printData("crc16Value", crc16Value));
         // create a 8 byte long array
         byte[] bytesForDecryption = new byte[8];
-        System.arraycopy(bytesForCrc,0, bytesForDecryption, 0, 3);
-        System.arraycopy(crc16Value,0, bytesForDecryption, 3, 2);
+        System.arraycopy(bytesForCrc, 0, bytesForDecryption, 0, 3);
+        System.arraycopy(crc16Value, 0, bytesForDecryption, 3, 2);
         Log.d(TAG, printData("bytesForDecryption", bytesForDecryption));
         // generate 24 bytes long triple des key
         byte[] tripleDES_SESSION_KEY = new byte[24];
@@ -2081,6 +2293,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         Log.d(TAG, printData("tripeDES Session Key", tripleDES_SESSION_KEY));
         byte[] IV_DES = new byte[8];
         Log.d(TAG, printData("IV_DES", IV_DES));
+        //byte[] decryptedData = TripleDES.encrypt(IV_DES, tripleDES_SESSION_KEY, bytesForDecryption);
         byte[] decryptedData = TripleDES.decrypt(IV_DES, tripleDES_SESSION_KEY, bytesForDecryption);
         Log.d(TAG, printData("decryptedData", decryptedData));
         // the parameter for wrapping
@@ -2095,12 +2308,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             Log.d(TAG, printData("wrappedCommand", wrappedCommand));
             response = isoDep.transceive(wrappedCommand);
             Log.d(TAG, printData("response", response));
+            if (checkResponse(response)) {
+                return true;
+            } else {
+                return false;
+            }
         } catch (IOException e) {
             writeToUiAppend(output, "IOException: " + e.getMessage());
             e.printStackTrace();
         }
-
-
         return false;
     }
 
@@ -2460,7 +2676,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         byte[] writeStandardFileResponse = new byte[0];
         try {
             // correct the parameter length
-            writeStandardFileParameter[4] = (byte) (data.length &0xff);
+            writeStandardFileParameter[4] = (byte) (data.length & 0xff);
             byte[] apdu = wrapMessage(writeStandardFileCommand, writeStandardFileParameter);
             writeToUiAppend(logTextView, printData("plain apdu", apdu));
 
@@ -2554,7 +2770,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
     }
 
     private static byte[] sendDes(byte[] key, byte[] data) {
-      return decryptDes(key, data);
+        return decryptDes(key, data);
     }
 
     // CRC16 calculated only over data
