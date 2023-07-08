@@ -64,7 +64,7 @@ public class FileSettings {
         position ++;
         accessRightsRW = completeResponse[position];
         position ++;
-        // todo get the values vor RW, Car, R and W
+        // get the values vor RW, Car, R and W
         // lowNibble = yourByte & 0x0f; highNibble = (yourByte >> 4) & 0x0f;
         // You can also do: lowNibble = yourByte & 0x0f; highNibble = yourByte >>> 4;
         accessRightsRw = (accessRightsRwCar >> 4) & 0x0f;
@@ -72,7 +72,7 @@ public class FileSettings {
         accessRightsR =  (accessRightsRW >> 4) & 0x0f;
         accessRightsW =  accessRightsRW & 0x0f;
 
-        if ((fileType == (byte) 0x00) | (fileType == (byte) 0x01)) {
+        if ((fileType == (byte) 0x00) || (fileType == (byte) 0x01)) {
             // standard and backup file
             fileSize = Arrays.copyOfRange(completeResponse, position, position + 3);
             fileSizeInt = byteArrayLength3InversedToInt(fileSize);
@@ -89,7 +89,7 @@ public class FileSettings {
             valueLimitedCreditAvailable = completeResponse[position];
             return;
         }
-        if ((fileType == (byte) 0x03) | (fileType == (byte) 0x04)) {
+        if ((fileType == (byte) 0x03) || (fileType == (byte) 0x04)) {
             // linear record and cyclic record file
             recordSize = Arrays.copyOfRange(completeResponse, position, position + 3);
             recordSizeInt = byteArrayLength3InversedToInt(recordSize);
@@ -125,7 +125,7 @@ public class FileSettings {
         sb.append("accessRights CAR: ").append(accessRightsCar).append("\n");
         sb.append("accessRights R:   ").append(accessRightsR).append("\n");
         sb.append("accessRights W:   ").append(accessRightsW).append("\n");
-        if ((fileType == (byte) 0x00) | (fileType == (byte) 0x01)) {
+        if ((fileType == (byte) 0x00) || (fileType == (byte) 0x01)) {
             sb.append("fileSize: ").append(byteArrayLength3InversedToInt(fileSize)).append("\n");
         }
         if (fileType == (byte) 0x02) {
@@ -134,7 +134,7 @@ public class FileSettings {
             sb.append("valueLimitedCredit: ").append(byteArrayLength4InversedToInt(valueLimitedCredit)).append("\n");
             sb.append("valueLimitedCreditAvailable: ").append(byteToHex(valueLimitedCreditAvailable)).append("\n");
         }
-        if ((fileType == (byte) 0x03) | (fileType == (byte) 0x04)) {
+        if ((fileType == (byte) 0x03) || (fileType == (byte) 0x04)) {
             sb.append("recordSize: ").append(recordSizeInt).append("\n");
             sb.append("recordsMax: ").append(recordsMaxInt).append("\n");
             sb.append("recordsExisting: ").append(recordsExistingInt).append("\n");
