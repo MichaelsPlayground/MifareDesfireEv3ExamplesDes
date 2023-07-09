@@ -1415,6 +1415,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 byte[] responseData = new byte[2];
                 byte keyId = (byte) 0x01; // we authenticate with keyId 1
                 boolean result = authenticateApplicationDes(output, keyId, DES_DEFAULT_KEY, true, responseData);
+                //boolean result = authenticateApplicationDes0A(output, keyId, DES_DEFAULT_KEY, true, responseData);
+
                 writeToUiAppend(output, "result of authenticateApplicationDes: " + result);
                 KEY_NUMBER_USED_FOR_AUTHENTICATION = keyId;
                 writeToUiAppend(output, "key number: " + Utils.byteToHex(KEY_NUMBER_USED_FOR_AUTHENTICATION));
