@@ -657,8 +657,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to select a file first", COLOR_RED);
                     return;
                 }
+                // check that an auth has been done before
+                if (SESSION_KEY_DES == null) {
+                    writeToUiAppendBorderColor(errorCode, errorCodeLayout, "you need to authenticate with the CAR key first", COLOR_RED);
+                    return;
+                }
+
+
                 boolean changeResult = changeTheFileSettings();
                 writeToUiAppend(output, "the changeFileSettings was " + changeResult);
+                if (changeResult) {
+                    writeToUiAppend(output, "Don't forget to tap the card to the reader again, otherwise you receive wrong results !");
+                }
                 //writeToUiAppend(output, "file settings of file " + selectedFileSettings.getFileNumberInt() + "\n" + selectedFileSettings.dump());
             }
         });
@@ -1361,6 +1371,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 String logString = "authKey 2";
                 writeToUiAppend(output, logString);
                 invalidateEncryptionKeys();
+/*
                 try {
                     boolean authResult = authenticateDesLegacy(DES_KEY_D2_DEFAULT, DES_KEY_D2_NUMBER);
                     writeToUiAppend(output, "authResult: " + authResult);
@@ -1368,8 +1379,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     writeToUiAppend(errorCode, "IOException " + e.getMessage());
                     throw new RuntimeException(e);
                 }
+*/
 
-                /*
+
                 byte[] responseData = new byte[2];
                 //byte keyId = (byte) 0x01; // we authenticate with keyId 0
                 //boolean result = authenticateApplicationDes(output, DES_KEY_D2_NUMBER, DES_KEY_D2_DEFAULT, true, responseData);
@@ -1382,7 +1394,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //writeToUiAppend(errorCode, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData));
                 int colorFromErrorCode = Ev3.getColorFromErrorCode(responseData);
                 writeToUiAppendBorderColor(errorCode, errorCodeLayout, "authenticateApplicationDes: " + Ev3.getErrorCode(responseData), colorFromErrorCode);
-                */
+
             }
         });
 
@@ -1775,11 +1787,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             // get the IV from old challengeData
             iv = challengeData.clone();
             writeToUiAppend(output, printData("iv", iv));
-            byte[] challengeAnswer = Ev3.encrypt(rndA_rndB, key, iv);
+            //byte[] challengeAnswer = Ev3.encrypt(rndA_rndB, key, iv);
+            byte[] challengeAnswer = Ev3.decrypt(rndA_rndB, key, iv);
             if (verbose)
                 writeToUiAppend(logTextView, printData("challengeAnswer", challengeAnswer));
             // encrypt rndA_rndB
             byte[] encryptedRndA_RndB = Ev3.encrypt(rndA_rndB, key, iv);
+            //byte[] encryptedRndA_RndB = Ev3.decrypt(rndA_rndB, key, iv);
             if (verbose)
                 writeToUiAppend(logTextView, printData("challengeAnswer", challengeAnswer));
             byte moreDataCommand = (byte) 0xaf;
@@ -2418,8 +2432,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         // the application master key is key 0
         // here we are using key 3 for read and key 4 for write access access, key 1 has read&write access and key 2 has change rights !
         byte accessRightsRwCar = (byte) 0x12; // Read&Write Access & ChangeAccessRights
-        byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
-        //byte accessRightsRW = (byte) 0x22; // Read Access & Write Access // read with key 2, write with key 2
+        //byte accessRightsRW = (byte) 0x34; // Read Access & Write Access // read with key 3, write with key 4
+        byte accessRightsRW = (byte) 0x22; // Read Access & Write Access // read with key 2, write with key 2
         // to calculate the crc16 over the setting bytes we need a 3 byte long array
         byte[] bytesForCrc = new byte[3];
         bytesForCrc[0] = commSettingsByte;
